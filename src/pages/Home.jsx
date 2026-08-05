@@ -125,7 +125,7 @@ function Landing({ onStart }) {
       </div>
 
       <div className="card mt-6 flex items-start gap-3 p-5">
-        <BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+        <GraduationCap className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
         <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
           The procedure follows the Soil Physics laboratory practical used in the
           <span className="font-semibold">
@@ -136,6 +136,13 @@ function Landing({ onStart }) {
           calculations run instantly in your browser — no data leaves this page.
         </p>
       </div>
+
+      <p className="mt-8 text-center text-xs text-slate-400 dark:text-slate-500">
+        Developed by{' '}
+        <span className="font-semibold text-slate-500 dark:text-slate-400">
+          Bello Muhyideen (Webmyn)
+        </span>
+      </p>
     </main>
   );
 }
@@ -162,6 +169,19 @@ function Workspace({ calc, toast, dark, graphRef }) {
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
+      <div className="no-print flex items-start gap-3 rounded-2xl bg-emerald-50 px-5 py-4 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:ring-emerald-900">
+        <BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+        <p className="text-sm leading-relaxed text-emerald-900 dark:text-emerald-200">
+          The procedure follows the Soil Physics laboratory practical used in the{' '}
+          <span className="font-semibold">
+            Department of Soil Science and Land Resources Management, Obafemi Awolowo
+            University (O.A.U.)
+          </span>{' '}
+          and the unsaturated hydraulic conductivity method of Zhang (1997). All calculations
+          run instantly in your browser — no data leaves this page.
+        </p>
+      </div>
+
       <div className="print-only">
         <h1 className="text-xl font-extrabold text-emerald-800">
           MINI DISK INFILTROMETER CALCULATOR
@@ -277,7 +297,10 @@ function Workspace({ calc, toast, dark, graphRef }) {
           </span>
         </div>
         <p className="mt-1 text-xs text-slate-300 dark:text-slate-600">
-          Generated using Mini Disk Infiltrometer Calculator
+          Generated using KunsatCalculator
+        </p>
+        <p className="mt-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
+          Developed by Bello Muhyideen (Webmyn)
         </p>
       </footer>
     </main>

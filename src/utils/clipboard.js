@@ -8,7 +8,7 @@ export async function exportGraphPng(graphRef) {
     scale: 2,
   });
   const link = document.createElement('a');
-  link.download = `KsatCalculator_graph_${Date.now()}.png`;
+  link.download = `KunsatCalculator_graph_${Date.now()}.png`;
   link.href = canvas.toDataURL('image/png');
   link.click();
   return true;

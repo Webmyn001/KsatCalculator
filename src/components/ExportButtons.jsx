@@ -3,7 +3,6 @@ import {
   FileText,
   ImageDown,
   Copy,
-  Printer,
   PlusCircle,
   Download,
 } from 'lucide-react';
@@ -73,8 +72,6 @@ export default function ExportButtons({
     toast('Table copied — paste directly into Excel.');
   });
 
-  const handlePrint = () => window.print();
-
   const handleNew = () => {
     if (
       !window.confirm(
@@ -103,7 +100,7 @@ export default function ExportButtons({
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <button
           onClick={handleExcel}
           disabled={!rows.some((r) => r.volume != null)}
@@ -135,13 +132,6 @@ export default function ExportButtons({
         >
           <Copy className="h-4 w-4" aria-hidden="true" />
           Copy Table
-        </button>
-        <button
-          onClick={handlePrint}
-          className={`${BTN} bg-white text-slate-700 ring-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-600 dark:hover:bg-slate-700`}
-        >
-          <Printer className="h-4 w-4" aria-hidden="true" />
-          Print
         </button>
         <button
           onClick={handleNew}

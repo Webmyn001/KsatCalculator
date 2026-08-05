@@ -11,7 +11,7 @@ function SplashScreen() {
         <Droplets className="h-10 w-10 text-white" aria-hidden="true" />
       </div>
       <p className="text-sm font-semibold tracking-wide text-emerald-100">
-        Loading KsatCalculator…
+        Loading KunsatCalculator…
       </p>
       <div className="h-1.5 w-40 overflow-hidden rounded-full bg-white/20">
         <div className="h-full w-1/2 animate-[slide_0.9s_ease-in-out_infinite] rounded-full bg-white" />

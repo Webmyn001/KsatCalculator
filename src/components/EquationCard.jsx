@@ -40,11 +40,6 @@ export default function EquationCard({ regression, scientific }) {
               <span className="font-mono">{formatNumber(regression.b, 4, scientific)}</span>{' '}
               (cm/s¹⁄²)
             </p>
-            <p>
-              <span className="font-semibold text-slate-700 dark:text-slate-200">c</span> ={' '}
-              <span className="font-mono">{formatNumber(regression.c, 4, scientific)}</span>{' '}
-              (cm)
-            </p>
             <p className="pt-1 text-xs text-slate-400 dark:text-slate-500">
               Fitted from {regression.count} valid data points.
             </p>

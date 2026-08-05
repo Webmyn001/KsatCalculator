@@ -39,7 +39,7 @@ export async function exportExcel({
   // ---- Report sheet ----
   const volUnit = unit;
   const reportRows = [
-    ['KsatCalculator — Mini Disk Infiltrometer (2 cm Suction)'],
+    ['KunsatCalculator — Mini Disk Infiltrometer (2 cm Suction)'],
     ['Infiltration & Hydraulic Conductivity Report'],
     [],
     ['Experiment Name', experiment.name || '—'],
@@ -96,5 +96,5 @@ export async function exportExcel({
     .replace(/[\\/:*?"<>|]/g, '_')
     .trim()
     .slice(0, 40);
-  XLSX.writeFile(wb, `KsatCalculator_${safeName || 'report'}.xlsx`);
+  XLSX.writeFile(wb, `KunsatCalculator_${safeName || 'report'}.xlsx`);
 }

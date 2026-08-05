@@ -153,7 +153,7 @@ export async function exportPdf({
     pageHeight - 12,
   );
   doc.text(
-    'Generated using Mini Disk Infiltrometer Calculator',
+    'Generated using KunsatCalculator',
     pageWidth / 2,
     pageHeight - 8,
     { align: 'center' },
@@ -163,5 +163,5 @@ export async function exportPdf({
     .replace(/[\\/:*?"<>|]/g, '_')
     .trim()
     .slice(0, 40);
-  doc.save(`KsatCalculator_${safeName || 'report'}.pdf`);
+  doc.save(`KunsatCalculator_${safeName || 'report'}.pdf`);
 }

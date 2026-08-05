@@ -20,12 +20,8 @@ export function formatNumber(value, decimals = 4, scientific = false) {
 
 export function formatEquation(regression) {
   if (!regression) return 'No valid data';
-  const { a, b, c } = regression;
-  const parts = [];
-  parts.push(`${formatNumber(a, 4)}x²`);
-  parts.push(`${b >= 0 ? '+' : '−'} ${formatNumber(Math.abs(b), 4)}x`);
-  parts.push(`${c >= 0 ? '+' : '−'} ${formatNumber(Math.abs(c), 4)}`);
-  return `y = ${parts.join(' ')}`;
+  const { a, b } = regression;
+  return `y = ${formatNumber(a, 4)}x² ${b >= 0 ? '+' : '−'} ${formatNumber(Math.abs(b), 4)}x`;
 }
 
 export function todayISO() {

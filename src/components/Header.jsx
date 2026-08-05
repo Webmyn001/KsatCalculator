@@ -10,7 +10,7 @@ export default function Header({ onHome, showHome, dark, toggleDark }) {
           </div>
           <div className="min-w-0">
             <h1 className="truncate text-base font-extrabold leading-tight sm:text-lg">
-              KsatCalculator
+              KunsatCalculator
             </h1>
             <p className="truncate text-[11px] font-medium text-emerald-100 sm:text-xs">
               Mini Disk Infiltrometer · 2 cm Suction
