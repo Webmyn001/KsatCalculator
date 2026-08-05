@@ -1,0 +1,23 @@
+{
+  "name": "KunsatCalculator — Mini Disk Infiltrometer (2 cm Suction)",
+  "short_name": "KunsatCalc",
+  "description": "Unsaturated hydraulic conductivity & infiltration calculator from Mini Disk Infiltrometer (2 cm suction) field measurements (Zhang, 1997).",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#059669",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

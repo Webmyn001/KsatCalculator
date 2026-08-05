@@ -293,11 +293,11 @@ function Workspace({ calc, toast, dark, graphRef }) {
           <GraduationCap className="h-4 w-4" aria-hidden="true" />
           <span>
             Built for the Department of Soil Science and Land Resources Management,
-            Obafemi Awolowo University.
+            Obafemi Awolowo University, Ile-Ife, Osun State.
           </span>
         </div>
         <p className="mt-1 text-xs text-slate-300 dark:text-slate-600">
-          Generated using KunsatCalculator
+          KunsatCalculator
         </p>
         <p className="mt-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
           Developed by Bello Muhyideen (Webmyn)
