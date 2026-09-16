@@ -24,6 +24,7 @@ function SplashScreen() {
 export default function App() {
   const calc = useCalculations();
   const [started, setStarted] = useState(false);
+  const [module, setModule] = useState('infiltrometer');
   const [booted, setBooted] = useState(false);
   const [toasts, setToasts] = useState([]);
 
@@ -70,6 +71,8 @@ export default function App() {
       <Home
         calc={calc}
         started={started}
+        module={module}
+        onModuleChange={setModule}
         onStart={(value) => {
           setStarted(value);
           if (value) window.scrollTo({ top: 0, behavior: 'smooth' });

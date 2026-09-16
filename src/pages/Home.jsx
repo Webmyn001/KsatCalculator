@@ -21,6 +21,7 @@ import HydraulicCard from '../components/HydraulicCard';
 import ExportButtons from '../components/ExportButtons';
 import FormulaSection from '../components/FormulaSection';
 import HistoryPanel from '../components/HistoryPanel';
+import DcpCalculator from './DcpCalculator';
 import { fittedCurve } from '../utils/regression';
 
 function SectionHeading({ icon: Icon, title, subtitle }) {
@@ -307,18 +308,27 @@ function Workspace({ calc, toast, dark, graphRef }) {
   );
 }
 
-export default function Home({ calc, started, onStart, dark, toggleDark, toast }) {
+export default function Home({ calc, started, onStart, dark, toggleDark, toast, module, onModuleChange }) {
   const graphRef = useRef(null);
+
+  const handleModuleChange = (next) => {
+    onModuleChange(next);
+    if (next === 'dcp') onStart(false);
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans dark:bg-slate-950">
       <Header
+        module={module}
+        onModuleChange={handleModuleChange}
         onHome={() => onStart(false)}
         showHome={started}
         dark={dark}
         toggleDark={toggleDark}
       />
-      {started ? (
+      {module === 'dcp' ? (
+        <DcpCalculator />
+      ) : started ? (
         <Workspace calc={calc} toast={toast} dark={dark} graphRef={graphRef} />
       ) : (
         <Landing onStart={() => onStart(true)} />
