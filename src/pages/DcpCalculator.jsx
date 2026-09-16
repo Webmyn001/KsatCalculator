@@ -436,6 +436,9 @@ export default function DcpCalculator() {
             Osun State.
           </span>
         </div>
+        <p className="mt-1 text-xs text-slate-300 dark:text-slate-600">
+          KunsatCalculator — Mini Disk Infiltrometer &amp; DCP Calculators
+        </p>
       </footer>
     </main>
   );

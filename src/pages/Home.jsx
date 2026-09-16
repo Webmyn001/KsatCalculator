@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   BookOpen,
   GraduationCap,
+  Calculator,
 } from 'lucide-react';
 import Header from '../components/Header';
 import ExperimentForm from '../components/ExperimentForm';
@@ -38,7 +39,7 @@ function SectionHeading({ icon: Icon, title, subtitle }) {
   );
 }
 
-function Landing({ onStart }) {
+function Landing({ onStart, onStartDcp }) {
   const features = [
     {
       icon: FlaskConical,
@@ -62,6 +63,13 @@ function Landing({ onStart }) {
     { n: '2', text: 'Pick a soil texture to auto-fill the Van Genuchten A parameter.' },
     { n: '3', text: 'Type the volume remaining in the disk at each time step.' },
     { n: '4', text: 'Read off infiltration, the polynomial equation, R² and K instantly.' },
+  ];
+
+  const dcpSteps = [
+    { n: '1', text: 'Drop the 8 kg hammer from 50 cm and enter the penetration depth (mm) reached by each blow.' },
+    { n: '2', text: 'Serial numbers are generated automatically — you only type in each depth reading.' },
+    { n: '3', text: 'Readings landing exactly on a 150 mm transition level (150, 300, 450, …) are interpolated between the previous and next depths.' },
+    { n: '4', text: 'Energy values are summed per 150 mm depth band to report the total soil strength in kPa.' },
   ];
 
   return (
@@ -125,25 +133,86 @@ function Landing({ onStart }) {
         </ol>
       </div>
 
+      <div className="animate-fadeUp mt-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-700 via-slate-600 to-slate-500 shadow-xl">
+        <div className="px-6 py-12 text-center text-white sm:px-12">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+            <Gauge className="h-9 w-9" aria-hidden="true" />
+          </div>
+          <h2 className="text-2xl font-extrabold tracking-tight sm:text-4xl">
+            Dynamic Cone Penetrometer (DCP) Calculator
+          </h2>
+          <blockquote className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-100 sm:text-base">
+            Estimates soil strength from penetration readings. An 8 kg hammer is dropped
+            freely from a height of 50 cm and the penetration depth (mm) is recorded after
+            every blow. Each reading is converted into an energy value and summed into a
+            total soil strength in kPa.
+          </blockquote>
+          <button
+            onClick={onStartDcp}
+            className="mt-8 inline-flex items-center gap-2.5 rounded-2xl bg-white px-8 py-4 text-base font-bold text-slate-800 shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+          >
+            <PlayCircle className="h-6 w-6" aria-hidden="true" />
+            Start DCP Calculator
+          </button>
+        </div>
+      </div>
+
+      <div className="card mt-6 p-6">
+        <h3 className="mb-4 flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100">
+          <Calculator className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+          How the DCP calculator works
+        </h3>
+        <ol className="grid gap-3 sm:grid-cols-2">
+          {dcpSteps.map(({ n, text }) => (
+            <li key={n} className="flex items-start gap-3">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-600 text-xs font-bold text-white">
+                {n}
+              </span>
+              <span className="pt-0.5 text-sm text-slate-600 dark:text-slate-300">{text}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
       <div className="card mt-6 flex items-start gap-3 p-5">
         <GraduationCap className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
         <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-          The procedure follows the Soil Physics laboratory practical used in the
+          Both calculators follow the Soil Physics laboratory practicals used in the
           <span className="font-semibold">
             {' '}Department of Soil Science and Land Resources Management, Obafemi Awolowo
             University (O.A.U.){' '}
           </span>
-          and the unsaturated hydraulic conductivity method of Zhang (1997). All
-          calculations run instantly in your browser — no data leaves this page.
+          — the unsaturated hydraulic conductivity method of Zhang (1997) for the
+          infiltrometer and the DCP energy convention for soil strength. All calculations
+          run instantly in your browser — no data leaves this page.
         </p>
       </div>
 
-      <p className="mt-8 text-center text-xs text-slate-400 dark:text-slate-500">
-        Developed by{' '}
-        <span className="font-semibold text-slate-500 dark:text-slate-400">
-          Bello Muhyideen (Webmyn)
-        </span>
-      </p>
+      <footer className="mt-10 border-t border-slate-200 pt-6 pb-2 text-center dark:border-slate-800">
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+          Calculators
+        </p>
+        <div className="mx-auto mt-3 flex max-w-xl flex-wrap items-center justify-center gap-x-6 gap-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <span className="inline-flex items-center gap-1.5">
+            <Droplets className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+            Mini Disk Infiltrometer (2 cm Suction)
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Gauge className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+            Dynamic Cone Penetrometer (DCP)
+          </span>
+        </div>
+        <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
+          Built for the Department of Soil Science and Land Resources Management,
+          Obafemi Awolowo University, Ile-Ife, Osun State.
+        </p>
+        <p className="mt-1 text-xs text-slate-300 dark:text-slate-600">
+          KunsatCalculator
+        </p>
+        <p className="mt-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
+          Developed by Bello Muhyideen (Webmyn)
+        </p>
+      </footer>
     </main>
   );
 }
@@ -298,7 +367,7 @@ function Workspace({ calc, toast, dark, graphRef }) {
           </span>
         </div>
         <p className="mt-1 text-xs text-slate-300 dark:text-slate-600">
-          KunsatCalculator
+          KunsatCalculator — Mini Disk Infiltrometer &amp; DCP Calculators
         </p>
         <p className="mt-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
           Developed by Bello Muhyideen (Webmyn)
@@ -331,7 +400,7 @@ export default function Home({ calc, started, onStart, dark, toggleDark, toast, 
       ) : started ? (
         <Workspace calc={calc} toast={toast} dark={dark} graphRef={graphRef} />
       ) : (
-        <Landing onStart={() => onStart(true)} />
+        <Landing onStart={() => onStart(true)} onStartDcp={() => handleModuleChange('dcp')} />
       )}
     </div>
   );
