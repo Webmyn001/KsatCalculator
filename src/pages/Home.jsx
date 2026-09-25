@@ -10,6 +10,7 @@ import {
   BookOpen,
   GraduationCap,
   Calculator,
+  Ruler,
 } from 'lucide-react';
 import Header from '../components/Header';
 import ExperimentForm from '../components/ExperimentForm';
@@ -23,6 +24,8 @@ import ExportButtons from '../components/ExportButtons';
 import FormulaSection from '../components/FormulaSection';
 import HistoryPanel from '../components/HistoryPanel';
 import DcpCalculator from './DcpCalculator';
+import CalibrationCalculator from './CalibrationCalculator';
+import SorptivityCard from '../components/SorptivityCard';
 import { fittedCurve } from '../utils/regression';
 
 function SectionHeading({ icon: Icon, title, subtitle }) {
@@ -39,7 +42,7 @@ function SectionHeading({ icon: Icon, title, subtitle }) {
   );
 }
 
-function Landing({ onStart, onStartDcp }) {
+function Landing({ onStart, onStartDcp, onStartCalibration }) {
   const features = [
     {
       icon: FlaskConical,
@@ -174,6 +177,51 @@ function Landing({ onStart, onStartDcp }) {
         </ol>
       </div>
 
+      <div className="animate-fadeUp mt-8 overflow-hidden rounded-3xl bg-gradient-to-br from-sky-700 via-sky-600 to-emerald-600 shadow-xl">
+        <div className="px-6 py-12 text-center text-white sm:px-12">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+            <Ruler className="h-9 w-9" aria-hidden="true" />
+          </div>
+          <h2 className="text-2xl font-extrabold tracking-tight sm:text-4xl">
+            Soil Moisture Instrument Calibration
+          </h2>
+          <blockquote className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-sky-100 sm:text-base">
+            Calibrate a moisture instrument against oven-dried gravimetric samples
+            (Dry / Moist / Wet) and fit a linear equation MC = aR + b, then convert
+            field readings into estimated reference-equivalent moisture content.
+          </blockquote>
+          <button
+            onClick={onStartCalibration}
+            className="mt-8 inline-flex items-center gap-2.5 rounded-2xl bg-white px-8 py-4 text-base font-bold text-sky-800 shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+          >
+            <PlayCircle className="h-6 w-6" aria-hidden="true" />
+            Open Calibration
+          </button>
+        </div>
+      </div>
+
+      <div className="card mt-6 p-6">
+        <h3 className="mb-4 flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100">
+          <Ruler className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+          How the calibration works
+        </h3>
+        <ol className="grid gap-3 sm:grid-cols-2">
+          {[
+            { n: '1', text: 'Weigh wet and oven-dried soil samples to get gravimetric moisture content (%).' },
+            { n: '2', text: 'Pair each sample with the instrument reading taken at the same time (Dry, Moist, Wet).' },
+            { n: '3', text: 'The calculator fits MC = aR + b by least squares and reports R² and RMSE.' },
+            { n: '4', text: 'Enter field readings to get estimated reference-equivalent moisture content, with CSV export.' },
+          ].map(({ n, text }) => (
+            <li key={n} className="flex items-start gap-3">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-600 text-xs font-bold text-white">
+                {n}
+              </span>
+              <span className="pt-0.5 text-sm text-slate-600 dark:text-slate-300">{text}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
       <div className="card mt-6 flex items-start gap-3 p-5">
         <GraduationCap className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
         <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
@@ -200,6 +248,10 @@ function Landing({ onStart, onStartDcp }) {
           <span className="inline-flex items-center gap-1.5">
             <Gauge className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
             Dynamic Cone Penetrometer (DCP)
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Ruler className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+            Soil Moisture Instrument Calibration
           </span>
         </div>
         <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
@@ -318,6 +370,9 @@ function Workspace({ calc, toast, dark, graphRef }) {
             unit={unit}
             scientific={scientific}
           />
+          <div className="mt-6">
+            <SorptivityCard rows={rows} scientific={scientific} isDark={dark} />
+          </div>
         </div>
       </section>
 
@@ -382,7 +437,7 @@ export default function Home({ calc, started, onStart, dark, toggleDark, toast, 
 
   const handleModuleChange = (next) => {
     onModuleChange(next);
-    if (next === 'dcp') onStart(false);
+    if (next === 'dcp' || next === 'calibration') onStart(false);
   };
 
   return (
@@ -395,12 +450,18 @@ export default function Home({ calc, started, onStart, dark, toggleDark, toast, 
         dark={dark}
         toggleDark={toggleDark}
       />
-      {module === 'dcp' ? (
+      {module === 'calibration' ? (
+        <CalibrationCalculator isDark={dark} />
+      ) : module === 'dcp' ? (
         <DcpCalculator />
       ) : started ? (
         <Workspace calc={calc} toast={toast} dark={dark} graphRef={graphRef} />
       ) : (
-        <Landing onStart={() => onStart(true)} onStartDcp={() => handleModuleChange('dcp')} />
+        <Landing
+          onStart={() => onStart(true)}
+          onStartDcp={() => handleModuleChange('dcp')}
+          onStartCalibration={() => handleModuleChange('calibration')}
+        />
       )}
     </div>
   );

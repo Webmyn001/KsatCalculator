@@ -1,8 +1,12 @@
-import { Droplets, Gauge, Moon, Sun, House } from 'lucide-react';
+import { Droplets, Gauge, Moon, Sun, House, Ruler } from 'lucide-react';
 
 export default function Header({ module, onModuleChange, onHome, showHome, dark, toggleDark }) {
   const subtitle =
-    module === 'dcp' ? 'Dynamic Cone Penetrometer' : 'Mini Disk Infiltrometer · 2 cm Suction';
+    module === 'dcp'
+      ? 'Dynamic Cone Penetrometer'
+      : module === 'calibration'
+        ? 'Soil Moisture Instrument Calibration'
+        : 'Mini Disk Infiltrometer · 2 cm Suction';
 
   return (
     <header className="sticky top-0 z-40 bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-700 text-white shadow-lg">
@@ -11,6 +15,8 @@ export default function Header({ module, onModuleChange, onHome, showHome, dark,
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25">
             {module === 'dcp' ? (
               <Gauge className="h-5 w-5" aria-hidden="true" />
+            ) : module === 'calibration' ? (
+              <Ruler className="h-5 w-5" aria-hidden="true" />
             ) : (
               <Droplets className="h-5 w-5" aria-hidden="true" />
             )}
@@ -56,6 +62,19 @@ export default function Header({ module, onModuleChange, onHome, showHome, dark,
             >
               <Gauge className="h-4 w-4" aria-hidden="true" />
               <span className="hidden md:inline">DCP</span>
+            </button>
+            <button
+              role="tab"
+              type="button"
+              aria-selected={module === 'calibration'}
+              onClick={() => onModuleChange('calibration')}
+              title="Soil moisture instrument calibration and gravimetric moisture"
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition sm:text-sm ${
+                module === 'calibration' ? 'bg-white text-emerald-800 shadow' : 'text-white hover:bg-white/10'
+              }`}
+            >
+              <Ruler className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden lg:inline">Calibration</span>
             </button>
           </div>
 
