@@ -407,11 +407,14 @@ export default function CalibrationCalculator({ isDark }) {
                   <button
                     type="button"
                     onClick={() => {
-                      const converted = fieldRows.map((f) => [
-                        f.label,
-                        f.reading,
-                        applyCalibration(f.reading, fit.a, fit.b),
-                      ]);
+                      const converted = fieldRows.map((f) => {
+                        const mc = applyCalibration(f.reading, fit.a, fit.b);
+                        return [
+                          f.label,
+                          f.reading,
+                          mc == null ? '' : formatNumber(mc, 2, false),
+                        ];
+                      });
                       downloadCsv(
                         `field-conversion-${todayISO()}.csv`,
                         ['Sample / location', 'Instrument reading (R)', 'Estimated moisture (%)'],
@@ -450,8 +453,9 @@ export default function CalibrationCalculator({ isDark }) {
                           <td className="py-2 pr-3 font-medium text-slate-700 dark:text-slate-200">{f.label}</td>
                           <td className="py-2 pr-3">
                             <input
-                              type="number"
+                              type="text"
                               inputMode="decimal"
+                              pattern="[0-9]*[.,]?[0-9]*"
                               className={`${INPUT} w-40`}
                               placeholder="e.g. 45"
                               value={f.reading}
@@ -461,7 +465,7 @@ export default function CalibrationCalculator({ isDark }) {
                           </td>
                           <td className="py-2 text-right">
                             <span className={`font-mono font-bold ${mc == null ? 'text-slate-400' : 'text-emerald-700 dark:text-emerald-300'}`}>
-                              {mc == null ? '\u2014' : `${formatNumber(mc, 4, false)} %`}
+                              {mc == null ? '\u2014' : `${formatNumber(mc, 2, false)} %`}
                             </span>
                           </td>
                           <td className="py-2 pl-3 text-right">

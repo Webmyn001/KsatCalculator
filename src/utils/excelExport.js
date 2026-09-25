@@ -32,6 +32,7 @@ export async function exportExcel({
   k,
   unit,
   dateGenerated,
+  sorptivity,
 }) {
   const XLSX = await import('xlsx');
   const wb = XLSX.utils.book_new();
@@ -51,6 +52,15 @@ export async function exportExcel({
     ['Van Genuchten A Parameter', aParam ?? '—'],
     ['Disk Area (cm²)', DISK_AREA],
     [],
+    ...(sorptivity && sorptivity.sw != null
+      ? [
+          ['Sorptivity Sw (cm s^-1/2)', formatNumber(sorptivity.sw, 6)],
+          ['Sorptivity Equation', `I = ${formatNumber(sorptivity.sw, 4)} * sqrt(t)`],
+          ['Sorptivity R²', formatNumber(sorptivity.r2, 4)],
+          ['Sorptivity RMSE (cm)', formatNumber(sorptivity.rmse, 4)],
+          ['Sorptivity Sample Count (n)', String(sorptivity.n)],
+        ]
+      : []),
     ['Polynomial Equation', regression ? formatEquation(regression) : 'No valid data'],
     ['R²', regression ? formatNumber(regression.r2, 4) : '—'],
     ['Hydraulic Conductivity K (cm/s)', k != null ? formatNumber(k, 6) : '—'],
