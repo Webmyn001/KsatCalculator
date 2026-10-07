@@ -183,19 +183,19 @@ function Landing({ onStart, onStartDcp, onStartCalibration }) {
             <Ruler className="h-9 w-9" aria-hidden="true" />
           </div>
           <h2 className="text-2xl font-extrabold tracking-tight sm:text-4xl">
-            Soil Moisture Instrument Calibration
+            Moisture Meter Calibration
           </h2>
           <blockquote className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-sky-100 sm:text-base">
-            Calibrate a moisture instrument against oven-dried gravimetric samples
+            Calibrate a moisture meter against oven-dried gravimetric samples
             (Dry / Moist / Wet) and fit a linear equation MC = aR + b, then convert
-            field readings into estimated reference-equivalent moisture content.
+            field readings into estimated volumetric moisture content.
           </blockquote>
           <button
             onClick={onStartCalibration}
             className="mt-8 inline-flex items-center gap-2.5 rounded-2xl bg-white px-8 py-4 text-base font-bold text-sky-800 shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
           >
             <PlayCircle className="h-6 w-6" aria-hidden="true" />
-            Open Calibration
+            Open Moisture Meter
           </button>
         </div>
       </div>
@@ -203,14 +203,15 @@ function Landing({ onStart, onStartDcp, onStartCalibration }) {
       <div className="card mt-6 p-6">
         <h3 className="mb-4 flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100">
           <Ruler className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-          How the calibration works
+          How the moisture meter calibration works
         </h3>
         <ol className="grid gap-3 sm:grid-cols-2">
           {[
-            { n: '1', text: 'Weigh wet and oven-dried soil samples to get gravimetric moisture content (%).' },
-            { n: '2', text: 'Pair each sample with the instrument reading taken at the same time (Dry, Moist, Wet).' },
-            { n: '3', text: 'The calculator fits MC = aR + b by least squares and reports R² and RMSE.' },
-            { n: '4', text: 'Enter field readings to get estimated reference-equivalent moisture content, with CSV export.' },
+            { n: '1', text: 'Collect soil cores with a sampler of known volume, then weigh each sample wet.' },
+            { n: '2', text: 'Oven-dry the samples and weigh them again to get dry mass.' },
+            { n: '3', text: 'Take a meter reading on each sample (Dry, Moist, Wet) and pair it with the core.' },
+            { n: '4', text: 'The calculator converts references to volumetric moisture and fits MC = aR + b with R² and RMSE.' },
+            { n: '5', text: 'Enter or paste field readings to get estimated moisture content, with CSV / Excel / PDF export.' },
           ].map(({ n, text }) => (
             <li key={n} className="flex items-start gap-3">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-600 text-xs font-bold text-white">
@@ -251,7 +252,7 @@ function Landing({ onStart, onStartDcp, onStartCalibration }) {
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Ruler className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-            Soil Moisture Instrument Calibration
+            Moisture Meter Calibration
           </span>
         </div>
         <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">

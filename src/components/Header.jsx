@@ -5,7 +5,7 @@ export default function Header({ module, onModuleChange, onHome, showHome, dark,
     module === 'dcp'
       ? 'Dynamic Cone Penetrometer'
       : module === 'calibration'
-        ? 'Soil Moisture Instrument Calibration'
+        ? 'Moisture Meter Calibration'
         : 'Mini Disk Infiltrometer · 2 cm Suction';
 
   return (
@@ -68,13 +68,13 @@ export default function Header({ module, onModuleChange, onHome, showHome, dark,
               type="button"
               aria-selected={module === 'calibration'}
               onClick={() => onModuleChange('calibration')}
-              title="Soil moisture instrument calibration and gravimetric moisture"
+              title="Moisture meter calibration and gravimetric moisture"
               className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition sm:text-sm ${
                 module === 'calibration' ? 'bg-white text-emerald-800 shadow' : 'text-white hover:bg-white/10'
               }`}
             >
               <Ruler className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden lg:inline">Calibration</span>
+              <span className="hidden xl:inline">Moisture Meter</span>
             </button>
           </div>
 

@@ -22,9 +22,9 @@ import { formatNumber, todayISO } from '../utils/formatting';
 import CalibrationGraph from '../components/CalibrationGraph';
 
 const DEFAULT_ROWS = [
-  { id: 'dry', condition: 'Dry', reading: '', moisture: '' },
-  { id: 'moist', condition: 'Moist', reading: '', moisture: '' },
-  { id: 'wet', condition: 'Wet', reading: '', moisture: '' },
+  { id: 'dry', condition: 'Dry', reading: '', wetMass: '', dryMass: '' },
+  { id: 'moist', condition: 'Moist', reading: '', wetMass: '', dryMass: '' },
+  { id: 'wet', condition: 'Wet', reading: '', wetMass: '', dryMass: '' },
 ];
 
 let nextId = 0;
@@ -86,20 +86,34 @@ function downloadCsv(filename, headers, rows) {
 export default function CalibrationCalculator({ isDark }) {
   const [rows, setRows] = useState(DEFAULT_ROWS);
 
-  // Instrument readings are volumetric; reference moisture is gravimetric
-  // (g/g). When a bulk density is supplied we convert references to volumetric:
-  //   cv = cw * rho_b / rho_w
-  // and fit the calibration on the volumetric basis.
-  const [bulkDensity, setBulkDensity] = useState('');
+  // Reference moisture is measured gravimetrically (g/g by oven-drying), but the
+  // instrument reads volumetric moisture. Using the core-sampler volume and the
+  // density of water we convert every reference to volumetric before fitting:
+  //   cw = (Mw - Md) / Md * 100          gravimetric (%)
+  //   ρb = Md / V                        bulk density
+  //   cv = cw * ρb / ρw                  volumetric (%)
+  const [samplerVolume, setSamplerVolume] = useState('');
   const [waterDensity, setWaterDensity] = useState('1');
 
-  const rhoB = bulkDensity === '' ? null : Number(bulkDensity);
   const rhoW = Number(waterDensity);
-  const volumetricActive = rhoB != null && Number.isFinite(rhoB) && rhoB > 0;
-  const volumetric = (moisture) => {
-    if (!volumetricActive) return null;
-    if (!Number.isFinite(rhoW) || rhoW <= 0) return null;
-    return calculateVolumetricMoisture(Number(moisture), rhoB, rhoW);
+  const samplerVol = samplerVolume === '' ? null : Number(samplerVolume);
+  const hasSampleVolume = samplerVol != null && Number.isFinite(samplerVol) && samplerVol > 0;
+
+  const gravimetricOf = (r) => calculateGravimetricMoisture(r.wetMass, r.dryMass);
+  const bulkDensityOf = (r) => calculateBulkDensity(r.dryMass, samplerVol);
+  const volumetricOf = (r) => {
+    if (!hasSampleVolume) return null;
+    const cw = gravimetricOf(r);
+    if (cw == null) return null;
+    const rhoB = bulkDensityOf(r);
+    if (rhoB == null) return null;
+    return calculateVolumetricMoisture(cw, rhoB, rhoW);
+  };
+  // Reference value used by the fit: volumetric when possible, else gravimetric.
+  const referenceOf = (r) => {
+    const cv = volumetricOf(r);
+    if (cv != null) return cv;
+    return gravimetricOf(r);
   };
 
   const setRow = (id, field, value) => {
@@ -107,7 +121,7 @@ export default function CalibrationCalculator({ isDark }) {
   };
 
   const addRow = () =>
-    setRows((rs) => [...rs, { id: uid(), condition: `Sample ${rs.length + 1}`, reading: '', moisture: '' }]);
+    setRows((rs) => [...rs, { id: uid(), condition: `Sample ${rs.length + 1}`, reading: '', wetMass: '', dryMass: '' }]);
   const removeRow = (id) => setRows((rs) => rs.filter((r) => r.id !== id));
   const clearRows = () => setRows(DEFAULT_ROWS);
 
@@ -115,14 +129,13 @@ export default function CalibrationCalculator({ isDark }) {
     () =>
       calculateLinearCalibration(
         rows
-          .map((r) => {
-            const cw = r.moisture;
-            const m = cw !== '' && volumetric(cw) != null ? volumetric(cw) : cw;
-            return { reading: r.reading, moisture: m };
-          })
-          .filter((p) => p.reading !== '' && p.moisture !== ''),
+          .map((r) => ({
+            reading: r.reading,
+            moisture: referenceOf(r),
+          }))
+          .filter((p) => p.reading !== '' && p.moisture !== null && Number.isFinite(p.moisture)),
       ),
-    [rows, bulkDensity, waterDensity],
+    [rows, samplerVolume, waterDensity],
   );
 
   const graphPoints = fit.points.map((p) => ({
@@ -206,10 +219,7 @@ export default function CalibrationCalculator({ isDark }) {
   // Gravimetric moisture helper (oven-drying method)
   const [gravWet, setGravWet] = useState('');
   const [gravDry, setGravDry] = useState('');
-  const [gravVolume, setGravVolume] = useState('');
   const gravResult = calculateGravimetricMoisture(gravWet, gravDry);
-  const bulkDensityResult = calculateBulkDensity(gravDry, gravVolume);
-  const volumetricResult = calculateVolumetricMoisture(gravResult, bulkDensityResult, rhoW);
 
   const transferGrav = () => {
     if (gravResult == null) return;
@@ -219,18 +229,15 @@ export default function CalibrationCalculator({ isDark }) {
         id: uid(),
         condition: `Sample ${rs.length + 1}`,
         reading: '',
-        moisture: formatNumber(gravResult, 4, false),
+        wetMass: gravWet,
+        dryMass: gravDry,
       },
     ]);
-    if (bulkDensityResult != null && bulkDensity === '') {
-      setBulkDensity(formatNumber(bulkDensityResult, 4, false));
-    }
     setGravWet('');
     setGravDry('');
-    setGravVolume('');
   };
 
-  const prevExists = rows.filter((r) => r.reading !== '' && r.moisture !== '').length;
+  const prevExists = rows.filter((r) => r.reading !== '' && referenceOf(r) !== null).length;
   const fitMessage =
     prevExists === 0
       ? null
@@ -247,14 +254,81 @@ export default function CalibrationCalculator({ isDark }) {
         <p className="text-sm leading-relaxed text-sky-900 dark:text-sky-200">
           Build a calibration equation{' '}
           <span className="font-semibold">MC = a&middot;R + b</span> between an instrument
-          reading (R, volumetric) and reference moisture content obtained by oven-drying
-          (gravimetric, g/g). Enter at least two calibration samples (ideally Dry, Moist
-          and Wet). When a bulk density and density of water are supplied, gravimetric
-          references are converted to volumetric (
-          <span className="font-semibold">c&#118; = c&#119; &middot; &rho;&#8310; / &rho;&#119;</span>)
-          before fitting. The fitted equation is then applied to field readings.
+          reading (R, volumetric) and reference moisture content obtained by oven-drying.
+          The instrument reads <span className="font-semibold">volumetric</span> moisture,
+          but the oven-drying reference is{' '}
+          <span className="font-semibold">gravimetric</span> (g water per g dry soil).
+          Enter the <span className="font-semibold">volume of the core sampler</span>, the
+          density of water, and the wet and dry soil masses for each sample — the page
+          converts every reference to volumetric moisture before fitting. At least two
+          samples with distinct readings are needed (ideally Dry, Moist and Wet).
         </p>
       </div>
+
+      {/* Procedure & user guide */}
+      <section className="grid gap-6 lg:grid-cols-2">
+        <div className="card p-5 sm:p-6">
+          <SectionHeading
+            icon={Info}
+            title="Procedure"
+            subtitle="How moisture meter calibration samples are prepared."
+          />
+          <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+            <li>
+              Collect undisturbed soil cores from the field with a sampler of{' '}
+              <span className="font-semibold">known volume</span> (note it in cm³).
+            </li>
+            <li>
+              Take a <span className="font-semibold">meter reading</span> on each core while
+              the soil is at its natural moisture state.
+            </li>
+            <li>
+              Oven-dry each core at 105 °C until constant mass, then weigh it to get the{' '}
+              <span className="font-semibold">dry soil mass</span>.
+            </li>
+            <li>
+              Aim for at least <span className="font-semibold">three</span> samples spanning
+              the range you care about — typically labelled Dry, Moist and Wet.
+            </li>
+            <li>
+              Enter each sample below: condition label, meter reading, wet mass and dry mass.
+              The page converts to volumetric moisture and fits{' '}
+              <span className="font-mono font-semibold">MC = aR + b</span>.
+            </li>
+          </ol>
+        </div>
+
+        <div className="card p-5 sm:p-6">
+          <SectionHeading
+            icon={GraduationCap}
+            title="User Guide"
+            subtitle="Step-by-step use of this calculator."
+          />
+          <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+            <li>
+              <span className="font-semibold">Enter the core sampler volume</span> and pick the
+              density of water in the Calibration Samples card.
+            </li>
+            <li>
+              Fill one row per soil moisture state: meter reading (R), wet soil mass and dry
+              soil mass. Gravimetric and volumetric moisture are computed for you.
+            </li>
+            <li>
+              Check the fitted <span className="font-mono font-semibold">MC = aR + b</span>{' '}
+              equation and its R² / RMSE — a good calibration has R² close to 1.
+            </li>
+            <li>
+              In <span className="font-semibold">Field Conversion</span>, add readings one by
+              one or paste them as JSON, then read the estimated moisture for each location.
+            </li>
+            <li>
+              Export the results with the <span className="font-semibold">CSV</span>,{' '}
+              <span className="font-semibold">Excel</span> or{' '}
+              <span className="font-semibold">PDF</span> buttons.
+            </li>
+          </ol>
+        </div>
+      </section>
 
       {/* Calibration samples */}
       <section>
@@ -262,112 +336,141 @@ export default function CalibrationCalculator({ isDark }) {
           <SectionHeading
             icon={Ruler}
             title="Calibration Samples"
-            subtitle="Instrument readings (volumetric) paired with reference gravimetric moisture content (%)."
+            subtitle="For each sample enter the instrument reading plus the wet and dry soil masses. The core-sampler volume converts references to volumetric moisture automatically."
           />
-          <div className="mb-4 grid gap-3 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200 sm:grid-cols-3 dark:bg-slate-800/50 dark:ring-slate-700">
+          <div className="mb-4 grid gap-4 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-slate-800/50 dark:ring-slate-700 lg:grid-cols-3">
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
-                Bulk density &rho;&#8310; (g/cm³)
+                Core sampler volume V (cm³)
               </label>
               <input
                 type="number"
                 inputMode="decimal"
                 className={INPUT}
-                placeholder="e.g. 1.40"
-                value={bulkDensity}
-                onChange={(e) => setBulkDensity(e.target.value)}
+                placeholder="e.g. 100"
+                value={samplerVolume}
+                onChange={(e) => setSamplerVolume(e.target.value)}
               />
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                Volume of the sampler cylinder (same for all samples).
+              </p>
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
-                Density of water &rho;&#119; (unit must match)
+                Density of water &rho;&#119;
               </label>
               <select
                 className={INPUT}
                 value={waterDensity}
                 onChange={(e) => setWaterDensity(e.target.value)}
               >
-                <option value="1">1 g/cm³ (0.001 kg/cm³)</option>
+                <option value="1">1 g/cm³</option>
                 <option value="1000">1000 kg/m³</option>
               </select>
-            </div>
-            <div className="flex items-end">
-              <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                Reference moisture is converted to volumetric before fitting:{' '}
-                <span className="font-semibold">
-                  c&#118; = c&#119; &middot; &rho;&#8310; / &rho;&#119;
-                </span>
-                . Leave bulk density empty to fit on gravimetric values directly.
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                Pick the value whose units match your bulk density display (1 g/cm³ = 1000 kg/m³).
               </p>
+            </div>
+            <div className="flex items-center">
+              <ol className="list-decimal space-y-1 pl-4 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                <li>
+                  Gravimetric: <span className="font-mono font-semibold">c&#119; = (M&#119; &#8722; M&#100;) / M&#100; &times; 100</span>
+                </li>
+                <li>
+                  Bulk density: <span className="font-mono font-semibold">&rho;&#8310; = M&#100; / V</span>
+                </li>
+                <li>
+                  Volumetric: <span className="font-mono font-semibold">c&#118; = c&#119; &times; &rho;&#8310; / &rho;&#119;</span>
+                </li>
+              </ol>
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-sm">
+            <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-xs font-bold uppercase tracking-wide text-slate-400 dark:border-slate-700 dark:text-slate-500">
                   <th className="py-2 pr-3">Condition / Sample</th>
                   <th className="py-2 pr-3">Instrument Reading (R)</th>
-                  <th className="py-2 pr-3">Reference Gravimetric (%)</th>
-                  {volumetricActive && <th className="py-2 pr-3">Volumetric (%)</th>}
+                  <th className="py-2 pr-3">Wet Soil Mass (g)</th>
+                  <th className="py-2 pr-3">Dry Soil Mass (g)</th>
+                  <th className="py-2 pr-3">Gravimetric (%)</th>
+                  <th className="py-2 pr-3">Volumetric (%)</th>
                   <th className="py-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
-                    <td className="py-2 pr-3">
-                      <input
-                        className={INPUT}
-                        value={r.condition}
-                        onChange={(e) => setRow(r.id, 'condition', e.target.value)}
-                        aria-label="Condition or sample label"
-                      />
-                    </td>
-                    <td className="py-2 pr-3">
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        className={INPUT}
-                        placeholder="e.g. 34"
-                        value={r.reading}
-                        onChange={(e) => setRow(r.id, 'reading', e.target.value)}
-                        aria-label="Instrument reading"
-                      />
-                    </td>
-                    <td className="py-2 pr-3">
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        pattern="[0-9]*[.,]?[0-9]*"
-                        className={INPUT}
-                        placeholder="e.g. 22.5"
-                        value={r.moisture}
-                        onChange={(e) => setRow(r.id, 'moisture', e.target.value)}
-                        aria-label="Reference gravimetric moisture percent"
-                      />
-                    </td>
-                    {volumetricActive && (
+                {rows.map((r) => {
+                  const cw = gravimetricOf(r);
+                  const cv = volumetricOf(r);
+                  return (
+                    <tr key={r.id} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
                       <td className="py-2 pr-3">
-                        <span className="font-mono text-emerald-700 dark:text-emerald-300">
-                          {r.moisture === '' || volumetric(r.moisture) == null
-                            ? '\u2014'
-                            : `${formatNumber(volumetric(r.moisture), 4, false)}`}
+                        <input
+                          className={INPUT}
+                          value={r.condition}
+                          onChange={(e) => setRow(r.id, 'condition', e.target.value)}
+                          aria-label="Condition or sample label"
+                        />
+                      </td>
+                      <td className="py-2 pr-3">
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          className={INPUT}
+                          placeholder="e.g. 34"
+                          value={r.reading}
+                          onChange={(e) => setRow(r.id, 'reading', e.target.value)}
+                          aria-label="Instrument reading"
+                        />
+                      </td>
+                      <td className="py-2 pr-3">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          pattern="[0-9]*[.,]?[0-9]*"
+                          className={INPUT}
+                          placeholder="e.g. 24.0"
+                          value={r.wetMass}
+                          onChange={(e) => setRow(r.id, 'wetMass', e.target.value)}
+                          aria-label="Wet soil mass grams"
+                        />
+                      </td>
+                      <td className="py-2 pr-3">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          pattern="[0-9]*[.,]?[0-9]*"
+                          className={INPUT}
+                          placeholder="e.g. 18.0"
+                          value={r.dryMass}
+                          onChange={(e) => setRow(r.id, 'dryMass', e.target.value)}
+                          aria-label="Dry soil mass grams"
+                        />
+                      </td>
+                      <td className="py-2 pr-3">
+                        <span className={`font-mono ${cw == null ? 'text-slate-400' : 'font-semibold text-slate-700 dark:text-slate-200'}`}>
+                          {cw == null ? '\u2014' : `${formatNumber(cw, 4, false)} %`}
                         </span>
                       </td>
-                    )}
-                    <td className="py-2 text-right">
-                      <button
-                        type="button"
-                        onClick={() => removeRow(r.id)}
-                        className="inline-flex items-center justify-center rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
-                        title="Remove sample"
-                        aria-label={`Remove ${r.condition}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="py-2 pr-3">
+                        <span className={`font-mono ${cv == null ? 'text-slate-400' : 'font-semibold text-emerald-700 dark:text-emerald-300'}`}>
+                          {cv == null ? '\u2014' : `${formatNumber(cv, 4, false)} %`}
+                        </span>
+                      </td>
+                      <td className="py-2 text-right">
+                        <button
+                          type="button"
+                          onClick={() => removeRow(r.id)}
+                          className="inline-flex items-center justify-center rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
+                          title="Remove sample"
+                          aria-label={`Remove ${r.condition}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -394,9 +497,9 @@ export default function CalibrationCalculator({ isDark }) {
           <SectionHeading
             icon={GraduationCap}
             title="Gravimetric Moisture Calculator"
-            subtitle="Oven-drying method: MC = ((M_wet - M_dry) / M_dry) × 100. Add the sample volume to also get bulk density and volumetric moisture."
+            subtitle="Oven-drying method: MC = ((M_wet - M_dry) / M_dry) × 100. Use it to find gravimetric moisture, then transfer the masses into a calibration sample row above."
           />
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
                 Wet soil mass (g)
@@ -423,23 +526,10 @@ export default function CalibrationCalculator({ isDark }) {
                 onChange={(e) => setGravDry(e.target.value)}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
-                Sample volume (cm³)
-              </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                className={INPUT}
-                placeholder="e.g. 14.7"
-                value={gravVolume}
-                onChange={(e) => setGravVolume(e.target.value)}
-              />
-            </div>
             <div className="flex items-end">
               <div className="w-full rounded-xl bg-emerald-50 px-4 py-2.5 text-center ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:ring-emerald-900">
                 <p className="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                  Moisture
+                  Gravimetric Moisture
                 </p>
                 <p className="font-mono text-base font-bold text-emerald-800 dark:text-emerald-300">
                   {gravResult == null ? '\u2014' : `${formatNumber(gravResult, 4, false)} %`}
@@ -456,29 +546,12 @@ export default function CalibrationCalculator({ isDark }) {
                 <Plus className="h-4 w-4" aria-hidden="true" /> Fill last sample
               </button>
             </div>
-            <div className="flex items-end">
-              <div className="w-full rounded-xl bg-sky-50 px-4 py-2.5 text-center ring-1 ring-sky-200 dark:bg-sky-950/40 dark:ring-sky-900">
-                <p className="text-xs font-bold uppercase tracking-wide text-sky-600 dark:text-sky-400">
-                  Bulk density
-                </p>
-                <p className="font-mono text-base font-bold text-sky-800 dark:text-sky-300">
-                  {bulkDensityResult == null ? '\u2014' : `${formatNumber(bulkDensityResult, 4, false)} g/cm³`}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-end">
-              <div className="w-full rounded-xl bg-emerald-50 px-4 py-2.5 text-center ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:ring-emerald-900">
-                <p className="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                  Volumetric moisture
-                </p>
-                <p className="font-mono text-base font-bold text-emerald-800 dark:text-emerald-300">
-                  {volumetricResult == null
-                    ? '\u2014'
-                    : `${formatNumber(volumetricResult, 4, false)} %`}
-                </p>
-              </div>
-            </div>
           </div>
+          <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
+            "Fill last sample" adds a calibration row with these wet and dry masses. The
+            reference is then converted to volumetric automatically using the core sampler
+            volume above.
+          </p>
         </div>
       </section>
 
@@ -537,7 +610,7 @@ export default function CalibrationCalculator({ isDark }) {
           <SectionHeading
             icon={Ruler}
             title="Field Conversion"
-            subtitle={`Apply the calibration equation to field instrument readings → Estimated ${volumetricActive ? 'Volumetric' : 'Reference-Equivalent'} Moisture Content.`}
+            subtitle={`Apply the calibration equation to field instrument readings → Estimated ${hasSampleVolume ? 'Volumetric' : 'Reference-Equivalent'} Moisture Content.`}
           />
           {!canConvert && prevExists >= 2 ? (
             <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:ring-amber-900">
@@ -658,7 +731,7 @@ export default function CalibrationCalculator({ isDark }) {
                       <th className="py-2 pr-3">Sample / location</th>
                       <th className="py-2 pr-3">Instrument reading (R)</th>
                       <th className="py-2 text-right">
-                        Estimated {volumetricActive ? 'Volumetric' : 'Reference-Equivalent'} Moisture (%)
+                        Estimated {hasSampleVolume ? 'Volumetric' : 'Reference-Equivalent'} Moisture (%)
                       </th>
                       <th className="py-2 pl-3 text-right">Actions</th>
                     </tr>
