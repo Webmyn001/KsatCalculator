@@ -129,7 +129,7 @@ export async function exportPdf({
       styles: { fontSize: 10, cellPadding: 2.4 },
       body: [
         ['Sorptivity Sw (cm s^-1/2)', formatNumber(sorptivity.sw, 6)],
-        ['Sorptivity Equation', sanitize(`I = ${formatNumber(sorptivity.sw, 4)} * sqrt(t)`)],
+        ['Sorptivity Equation', sanitize(sorptivity.equation || '—')],
         ['Coefficient of Determination (R2)', formatNumber(sorptivity.r2, 4)],
         ['Root Mean Square Error (cm)', formatNumber(sorptivity.rmse, 4)],
         ['Sample Count (n)', String(sorptivity.n)],

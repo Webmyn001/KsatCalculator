@@ -1,59 +1,52 @@
 /**
- * Sorptivity (Sw) of a soil computed from cumulative infiltration vs time.
+ * Sorptivity (Sw) derived from the fitted infiltration curve.
  *
- * Assumes the early-time infiltration model  I = Sw * t^(1/2)  (cm), where
- * t is elapsed time (s). Sorptivity is the slope of a least-squares line
- * forced through the origin on the scale x = sqrt(t), y = I:
+ * The infiltration curve produced by the infiltrometer is fitted as a
+ * polynomial in x = sqrt(t):   cumCm = a*x^2 + b*x + c
+ * which, in terms of time, expands to:
  *
- *     Sw = sum(I_i * sqrt(t_i)) / sum(t_i),        units: cm · s^(-1/2)
+ *     I = a*t + b*sqrt(t) + c
  *
- * The dataset is the existing infiltration dataset already calculated by
- * the infiltrometer (time + cumulative infiltration in cm) — the caller
- * passes it straight through, so there is no second data entry and results
- * update live as the user edits volume readings.
+ * This matches the two-term infiltration equation of Zhang (1997):
+ *
+ *     I = C1*t + C2*sqrt(t)
+ *
+ * where C2 (the coefficient of sqrt(t)) is the soil sorptivity Sw, with
+ * units cm * s^(-1/2). Therefore sorptivity is the coefficient b of the
+ * fitted curve, NOT an independent origin-forced fit.
  */
 
 /**
- * Fit I = Sw * sqrt(t) through the origin using least squares.
- * @param {Array<{time: number, cumulativeInfiltration: number}>} infiltrationData
+ * Extract sorptivity from a fitted infiltration regression.
+ * @param {object|null} regression fitPolynomial result { a, b, c, r2, fitted }
  * @returns {{ sw: number|null, n: number, r2: number|null, rmse: number|null,
+ *            equation: string|null,
  *            points: Array<{sqrtTime:number, cumulativeInfiltration:number}>,
  *            fitted: Array<{sqrtTime:number, cumulativeInfiltration:number}> }}
  */
-export function calculateSorptivity(infiltrationData) {
-  if (!Array.isArray(infiltrationData)) {
-    return { sw: null, n: 0, r2: null, rmse: null, points: [], fitted: [] };
+export function sorptivityFromRegression(regression) {
+  if (
+    !regression ||
+    !Array.isArray(regression.fitted) ||
+    regression.fitted.length === 0
+  ) {
+    return { sw: null, n: 0, r2: null, rmse: null, equation: null, points: [], fitted: [] };
   }
 
-  const points = [];
-  for (const d of infiltrationData) {
-    const time = Number(d && d.time);
-    const cum = Number(d && d.cumulativeInfiltration);
-    if (!Number.isFinite(time) || time <= 0) continue;
-    if (!Number.isFinite(cum) || cum < 0) continue;
-    points.push({ sqrtTime: Math.sqrt(time), cumulativeInfiltration: cum });
+  const n = regression.fitted.length;
+
+  const sw = Number(regression.b); // coefficient of sqrt(t) -> C2 = sorptivity
+  if (!Number.isFinite(sw)) {
+    return { sw: null, n, r2: null, rmse: null, equation: null, points: [], fitted: [] };
   }
 
-  const n = points.length;
-  if (n === 0) {
-    return { sw: null, n, r2: null, rmse: null, points, fitted: [] };
-  }
-
-  // Least squares through the origin: minimize sum((I - Sw*sqrt(t))^2).
-  let sumXY = 0;
-  let sumXX = 0;
-  for (const p of points) {
-    sumXY += p.sqrtTime * p.cumulativeInfiltration;
-    sumXX += p.sqrtTime * p.sqrtTime;
-  }
-  if (sumXX === 0) {
-    return { sw: null, n, r2: null, rmse: null, points, fitted: [] };
-  }
-  const sw = sumXY / sumXX;
-
-  const fitted = points.map((p) => ({
-    sqrtTime: p.sqrtTime,
-    cumulativeInfiltration: sw * p.sqrtTime,
+  const points = regression.fitted.map((p) => ({
+    sqrtTime: p.x,
+    cumulativeInfiltration: p.y,
+  }));
+  const fitted = regression.fitted.map((p) => ({
+    sqrtTime: p.x,
+    cumulativeInfiltration: p.yFit,
   }));
 
   const r2 = calculateR2(
@@ -65,7 +58,15 @@ export function calculateSorptivity(infiltrationData) {
     fitted.map((p) => p.cumulativeInfiltration),
   );
 
-  return { sw, n, r2, rmse, points, fitted };
+  const equation = `I = ${formatCoef(regression.a)}*t ${sw >= 0 ? '+' : '-'} ${formatCoef(Math.abs(sw))}*sqrt(t) ${regression.c >= 0 ? '+' : '-'} ${formatCoef(Math.abs(regression.c))}`;
+
+  return { sw, n, r2, rmse, equation, points, fitted };
+}
+
+function formatCoef(x) {
+  if (!Number.isFinite(x)) return '0';
+  if (x !== 0 && (Math.abs(x) >= 1000 || Math.abs(x) < 0.001)) return x.toExponential(3);
+  return Number(x.toFixed(4)).toString();
 }
 
 /**

@@ -11,25 +11,20 @@ import {
   Scatter,
 } from 'recharts';
 import { Sigma } from 'lucide-react';
-import { calculateSorptivity } from '../utils/sorptivity';
+import { sorptivityFromRegression } from '../utils/sorptivity';
 import { formatNumber } from '../utils/formatting';
 
 /**
- * Sorptivity is always derived from the infiltration dataset already
- * computed by the infiltrometer (function of elapsed time and cumulative
- * infiltration). Rows come in with `time` (s) and `cumulativeCm` (cm),
- * so the user never re-enters time or cumulative infiltration and the
- * value updates live with the volume readings.
+ * Sorptivity is taken straight from the fitted infiltration curve
+ * (I = C1*t + C2*sqrt(t), Zhang 1997): the coefficient of sqrt(t) is C2,
+ * the soil sorptivity Sw. The card reads the regression already computed
+ * by the infiltrometer, so values update live with the volume readings and
+ * there is no separate data entry.
  */
-export default function SorptivityCard({ rows, scientific, isDark }) {
-  const data = useMemo(() => {
-    const mapped = (rows || [])
-      .filter((r) => r && r.time > 0 && r.cumulativeCm != null)
-      .map((r) => ({ time: r.time, cumulativeInfiltration: r.cumulativeCm }));
-    return calculateSorptivity(mapped);
-  }, [rows]);
+export default function SorptivityCard({ regression, scientific, isDark }) {
+  const data = useMemo(() => sorptivityFromRegression(regression), [regression]);
 
-  if (data.n === 0) {
+  if (data.sw == null || data.n === 0) {
     return (
       <div className="card flex h-full flex-col items-center justify-center gap-2 p-5 text-center sm:p-6">
         <Sigma className="h-8 w-8 text-slate-300 dark:text-slate-600" aria-hidden="true" />
@@ -37,7 +32,8 @@ export default function SorptivityCard({ rows, scientific, isDark }) {
           No sorptivity yet
         </p>
         <p className="max-w-xs text-xs text-slate-400 dark:text-slate-500">
-          Enter at least one volume reading with elapsed time to fit I = S&#8341;&#8730;t.
+          Fit the infiltration curve first (at least 3 valid volume readings) to read C2 of
+          I = C1&middot;t + C2&middot;&#8730;t as sorptivity.
         </p>
       </div>
     );
@@ -60,7 +56,7 @@ export default function SorptivityCard({ rows, scientific, isDark }) {
           Sorptivity (S&#8341;)
         </h2>
         <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900">
-          I = S&#8341;&#8730;t &middot; through origin
+          C2 of I = C1&middot;t + C2&middot;&#8730;t
         </span>
       </div>
 
@@ -70,7 +66,7 @@ export default function SorptivityCard({ rows, scientific, isDark }) {
           <span className="text-base font-bold">cm&middot;s&#8315;&#189;</span>
         </p>
         <p className="mt-1 font-mono text-sm font-semibold text-emerald-800 dark:text-emerald-300">
-          I = {formatNumber(data.sw, 4, scientific)} &#8730;t
+          I = {formatNumber(data.sw, 4, scientific)} &#8730;t (from fitted curve)
         </p>
         <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
           Fitted from {data.n} valid observation{data.n === 1 ? '' : 's'} &middot; R&#178;
@@ -92,7 +88,7 @@ export default function SorptivityCard({ rows, scientific, isDark }) {
               stroke={theme.grid}
             />
             <YAxis
-              dataKey="fit"
+              dataKey="obs"
               type="number"
               domain={[0, 'auto']}
               label={{ value: 'Cumulative infiltration I (cm)', angle: -90, position: 'insideLeft', offset: 8, fill: theme.axis, fontSize: 12 }}
@@ -104,13 +100,13 @@ export default function SorptivityCard({ rows, scientific, isDark }) {
               labelFormatter={(v) => `\u221at = ${v}`}
               formatter={(value, name) => [
                 `${Number(value).toFixed(4)} cm`,
-                name === 'Measured data' ? 'Measured data' : 'I = S\u8341\u221at',
+                name === 'Measured data' ? 'Measured data' : 'Fitted curve',
               ]}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <Line
               dataKey="fit"
-              name="I = S\u8341\u221at"
+              name="Fitted curve"
               type="monotone"
               connectNulls
               dot={false}
@@ -122,9 +118,24 @@ export default function SorptivityCard({ rows, scientific, isDark }) {
               dataKey="obs"
               name="Measured data"
               fill="#10b981"
-              fillOpacity={0.9}
-              stroke="#047857"
-              strokeWidth={1}
+              fillOpacity={1}
+              stroke="#065f46"
+              strokeWidth={1.5}
+              shape={(props) => {
+                const { cx, cy } = props;
+                if (cx == null || cy == null) return null;
+                return (
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={3.5}
+                    fill="#10b981"
+                    fillOpacity={1}
+                    stroke="#065f46"
+                    strokeWidth={1.5}
+                  />
+                );
+              }}
               line={false}
               isAnimationActive
             />

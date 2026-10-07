@@ -142,6 +142,37 @@ export function applyCalibration(reading, slope, intercept) {
   return a * r + b;
 }
 
+/**
+ * Bulk density (dry) of a soil core: rho_b = M_dry / V  (g/cm^3).
+ * @param {number} dryMass oven-dried soil mass (g)
+ * @param {number} volume core/sample volume (cm^3)
+ */
+export function calculateBulkDensity(dryMass, volume) {
+  const Md = Number(dryMass);
+  const V = Number(volume);
+  if (!Number.isFinite(Md) || !Number.isFinite(V) || V <= 0) return null;
+  return Md / V;
+}
+
+/**
+ * Volumetric moisture content from gravimetric moisture content:
+ *   theta_v = cw * (rho_b / rho_w)
+ * where cw is the gravimetric moisture (as a %, g water per g dry soil),
+ * rho_b the dry bulk density and rho_w the density of water in the SAME
+ * units as rho_b (1 g/cm^3 or 1000 kg/m^3). The ratio rho_b/rho_w is
+ * dimensionless, so the result carries the same units (%) as cw.
+ * @param {number} cw gravimetric moisture content (%)
+ * @param {number} bulkDensity dry bulk density
+ * @param {number} waterDensity density of water (1 or 1000)
+ */
+export function calculateVolumetricMoisture(cw, bulkDensity, waterDensity) {
+  const g = Number(cw);
+  const rho = Number(bulkDensity);
+  const rhoW = Number(waterDensity);
+  if (!Number.isFinite(g) || !Number.isFinite(rho) || !Number.isFinite(rhoW) || rhoW <= 0) return null;
+  return (g * rho) / rhoW;
+}
+
 function fmt(x) {
   if (!Number.isFinite(x)) return '0';
   if (x !== 0 && (Math.abs(x) >= 1000 || Math.abs(x) < 0.001)) return x.toExponential(4);

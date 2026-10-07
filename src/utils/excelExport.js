@@ -55,7 +55,7 @@ export async function exportExcel({
     ...(sorptivity && sorptivity.sw != null
       ? [
           ['Sorptivity Sw (cm s^-1/2)', formatNumber(sorptivity.sw, 6)],
-          ['Sorptivity Equation', `I = ${formatNumber(sorptivity.sw, 4)} * sqrt(t)`],
+          ['Sorptivity Equation', sorptivity.equation || '—'],
           ['Sorptivity R²', formatNumber(sorptivity.r2, 4)],
           ['Sorptivity RMSE (cm)', formatNumber(sorptivity.rmse, 4)],
           ['Sorptivity Sample Count (n)', String(sorptivity.n)],

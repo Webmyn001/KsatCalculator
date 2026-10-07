@@ -371,7 +371,7 @@ function Workspace({ calc, toast, dark, graphRef }) {
             scientific={scientific}
           />
           <div className="mt-6">
-            <SorptivityCard rows={rows} scientific={scientific} isDark={dark} />
+            <SorptivityCard regression={regression} scientific={scientific} isDark={dark} />
           </div>
         </div>
       </section>

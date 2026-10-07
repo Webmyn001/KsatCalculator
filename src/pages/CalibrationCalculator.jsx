@@ -13,8 +13,11 @@ import {
 import {
   calculateLinearCalibration,
   calculateGravimetricMoisture,
+  calculateBulkDensity,
+  calculateVolumetricMoisture,
   applyCalibration,
 } from '../utils/calibration';
+import { exportFieldExcel, exportFieldPdf } from '../utils/fieldExport';
 import { formatNumber, todayISO } from '../utils/formatting';
 import CalibrationGraph from '../components/CalibrationGraph';
 
@@ -83,6 +86,22 @@ function downloadCsv(filename, headers, rows) {
 export default function CalibrationCalculator({ isDark }) {
   const [rows, setRows] = useState(DEFAULT_ROWS);
 
+  // Instrument readings are volumetric; reference moisture is gravimetric
+  // (g/g). When a bulk density is supplied we convert references to volumetric:
+  //   cv = cw * rho_b / rho_w
+  // and fit the calibration on the volumetric basis.
+  const [bulkDensity, setBulkDensity] = useState('');
+  const [waterDensity, setWaterDensity] = useState('1');
+
+  const rhoB = bulkDensity === '' ? null : Number(bulkDensity);
+  const rhoW = Number(waterDensity);
+  const volumetricActive = rhoB != null && Number.isFinite(rhoB) && rhoB > 0;
+  const volumetric = (moisture) => {
+    if (!volumetricActive) return null;
+    if (!Number.isFinite(rhoW) || rhoW <= 0) return null;
+    return calculateVolumetricMoisture(Number(moisture), rhoB, rhoW);
+  };
+
   const setRow = (id, field, value) => {
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [field]: value } : r)));
   };
@@ -96,10 +115,14 @@ export default function CalibrationCalculator({ isDark }) {
     () =>
       calculateLinearCalibration(
         rows
-          .map((r) => ({ reading: r.reading, moisture: r.moisture }))
+          .map((r) => {
+            const cw = r.moisture;
+            const m = cw !== '' && volumetric(cw) != null ? volumetric(cw) : cw;
+            return { reading: r.reading, moisture: m };
+          })
           .filter((p) => p.reading !== '' && p.moisture !== ''),
       ),
-    [rows],
+    [rows, bulkDensity, waterDensity],
   );
 
   const graphPoints = fit.points.map((p) => ({
@@ -121,6 +144,52 @@ export default function CalibrationCalculator({ isDark }) {
   // Field conversion
   const [fieldRows, setFieldRows] = useState([]);
   const [fieldLabel, setFieldLabel] = useState('');
+  const [jsonText, setJsonText] = useState('');
+  const [jsonError, setJsonError] = useState('');
+  const [copiedMsg, setCopiedMsg] = useState('');
+
+  const convertedFieldRows = () =>
+    fieldRows.map((f) => {
+      const mc = applyCalibration(f.reading, fit.a, fit.b);
+      return {
+        label: f.label,
+        reading: f.reading,
+        moisture: mc == null ? null : mc,
+      };
+    });
+
+  const importJson = () => {
+    setJsonError('');
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonText.trim());
+    } catch {
+      setJsonError('Invalid JSON — please check the syntax.');
+      return;
+    }
+    if (!Array.isArray(parsed)) {
+      setJsonError('JSON must be an array of numbers or objects.');
+      return;
+    }
+    const rowsArr = parsed.map((item, idx) => {
+      if (typeof item === 'number' || (typeof item === 'string' && item !== '')) {
+        return { id: uid(), label: `Sample ${idx + 1}`, reading: String(item) };
+      }
+      if (typeof item === 'object' && item !== null) {
+        const label = item.label ?? item.sample ?? item.name ?? item.location;
+        const reading = item.reading ?? item.value ?? item.r;
+        return { id: uid(), label: label ? String(label) : `Sample ${idx + 1}`, reading: String(reading ?? '') };
+      }
+      return null;
+    });
+    const valid = rowsArr.filter(Boolean);
+    if (valid.length === 0) {
+      setJsonError('No readings found in the JSON — use e.g. [{"label":"Plot A","reading":45}, ...] or [45, 52, 38].');
+      return;
+    }
+    setFieldRows((fs) => [...fs, ...valid]);
+    setJsonText('');
+  };
 
   const addFieldRow = () => {
     const val = fieldLabel.trim() || `Sample ${fieldRows.length + 1}`;
@@ -137,7 +206,10 @@ export default function CalibrationCalculator({ isDark }) {
   // Gravimetric moisture helper (oven-drying method)
   const [gravWet, setGravWet] = useState('');
   const [gravDry, setGravDry] = useState('');
+  const [gravVolume, setGravVolume] = useState('');
   const gravResult = calculateGravimetricMoisture(gravWet, gravDry);
+  const bulkDensityResult = calculateBulkDensity(gravDry, gravVolume);
+  const volumetricResult = calculateVolumetricMoisture(gravResult, bulkDensityResult, rhoW);
 
   const transferGrav = () => {
     if (gravResult == null) return;
@@ -150,8 +222,12 @@ export default function CalibrationCalculator({ isDark }) {
         moisture: formatNumber(gravResult, 4, false),
       },
     ]);
+    if (bulkDensityResult != null && bulkDensity === '') {
+      setBulkDensity(formatNumber(bulkDensityResult, 4, false));
+    }
     setGravWet('');
     setGravDry('');
+    setGravVolume('');
   };
 
   const prevExists = rows.filter((r) => r.reading !== '' && r.moisture !== '').length;
@@ -171,9 +247,12 @@ export default function CalibrationCalculator({ isDark }) {
         <p className="text-sm leading-relaxed text-sky-900 dark:text-sky-200">
           Build a calibration equation{' '}
           <span className="font-semibold">MC = a&middot;R + b</span> between an instrument
-          reading (R) and gravimetric moisture content (MC, %) obtained by oven-drying.
-          Enter at least two calibration samples (ideally Dry, Moist and Wet). The fitted
-          equation is then applied to field readings.
+          reading (R, volumetric) and reference moisture content obtained by oven-drying
+          (gravimetric, g/g). Enter at least two calibration samples (ideally Dry, Moist
+          and Wet). When a bulk density and density of water are supplied, gravimetric
+          references are converted to volumetric (
+          <span className="font-semibold">c&#118; = c&#119; &middot; &rho;&#8310; / &rho;&#119;</span>)
+          before fitting. The fitted equation is then applied to field readings.
         </p>
       </div>
 
@@ -183,15 +262,53 @@ export default function CalibrationCalculator({ isDark }) {
           <SectionHeading
             icon={Ruler}
             title="Calibration Samples"
-            subtitle="Instrument readings paired with gravimetric moisture content (%)."
+            subtitle="Instrument readings (volumetric) paired with reference gravimetric moisture content (%)."
           />
+          <div className="mb-4 grid gap-3 rounded-xl bg-slate-50 p-4 ring-1 ring-slate-200 sm:grid-cols-3 dark:bg-slate-800/50 dark:ring-slate-700">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Bulk density &rho;&#8310; (g/cm³)
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                className={INPUT}
+                placeholder="e.g. 1.40"
+                value={bulkDensity}
+                onChange={(e) => setBulkDensity(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Density of water &rho;&#119; (unit must match)
+              </label>
+              <select
+                className={INPUT}
+                value={waterDensity}
+                onChange={(e) => setWaterDensity(e.target.value)}
+              >
+                <option value="1">1 g/cm³ (0.001 kg/cm³)</option>
+                <option value="1000">1000 kg/m³</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                Reference moisture is converted to volumetric before fitting:{' '}
+                <span className="font-semibold">
+                  c&#118; = c&#119; &middot; &rho;&#8310; / &rho;&#119;
+                </span>
+                . Leave bulk density empty to fit on gravimetric values directly.
+              </p>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-xs font-bold uppercase tracking-wide text-slate-400 dark:border-slate-700 dark:text-slate-500">
                   <th className="py-2 pr-3">Condition / Sample</th>
                   <th className="py-2 pr-3">Instrument Reading (R)</th>
-                  <th className="py-2 pr-3">Gravimetric Moisture (%)</th>
+                  <th className="py-2 pr-3">Reference Gravimetric (%)</th>
+                  {volumetricActive && <th className="py-2 pr-3">Volumetric (%)</th>}
                   <th className="py-2 text-right">Actions</th>
                 </tr>
               </thead>
@@ -219,15 +336,25 @@ export default function CalibrationCalculator({ isDark }) {
                     </td>
                     <td className="py-2 pr-3">
                       <input
-                        type="number"
+                        type="text"
                         inputMode="decimal"
+                        pattern="[0-9]*[.,]?[0-9]*"
                         className={INPUT}
                         placeholder="e.g. 22.5"
                         value={r.moisture}
                         onChange={(e) => setRow(r.id, 'moisture', e.target.value)}
-                        aria-label="Gravimetric moisture percent"
+                        aria-label="Reference gravimetric moisture percent"
                       />
                     </td>
+                    {volumetricActive && (
+                      <td className="py-2 pr-3">
+                        <span className="font-mono text-emerald-700 dark:text-emerald-300">
+                          {r.moisture === '' || volumetric(r.moisture) == null
+                            ? '\u2014'
+                            : `${formatNumber(volumetric(r.moisture), 4, false)}`}
+                        </span>
+                      </td>
+                    )}
                     <td className="py-2 text-right">
                       <button
                         type="button"
@@ -267,9 +394,9 @@ export default function CalibrationCalculator({ isDark }) {
           <SectionHeading
             icon={GraduationCap}
             title="Gravimetric Moisture Calculator"
-            subtitle="Oven-drying method: MC = ((M_wet - M_dry) / M_dry) × 100."
+            subtitle="Oven-drying method: MC = ((M_wet - M_dry) / M_dry) × 100. Add the sample volume to also get bulk density and volumetric moisture."
           />
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
                 Wet soil mass (g)
@@ -296,12 +423,25 @@ export default function CalibrationCalculator({ isDark }) {
                 onChange={(e) => setGravDry(e.target.value)}
               />
             </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Sample volume (cm³)
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                className={INPUT}
+                placeholder="e.g. 14.7"
+                value={gravVolume}
+                onChange={(e) => setGravVolume(e.target.value)}
+              />
+            </div>
             <div className="flex items-end">
               <div className="w-full rounded-xl bg-emerald-50 px-4 py-2.5 text-center ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:ring-emerald-900">
                 <p className="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
                   Moisture
                 </p>
-                <p className="font-mono text-lg font-bold text-emerald-800 dark:text-emerald-300">
+                <p className="font-mono text-base font-bold text-emerald-800 dark:text-emerald-300">
                   {gravResult == null ? '\u2014' : `${formatNumber(gravResult, 4, false)} %`}
                 </p>
               </div>
@@ -315,6 +455,28 @@ export default function CalibrationCalculator({ isDark }) {
               >
                 <Plus className="h-4 w-4" aria-hidden="true" /> Fill last sample
               </button>
+            </div>
+            <div className="flex items-end">
+              <div className="w-full rounded-xl bg-sky-50 px-4 py-2.5 text-center ring-1 ring-sky-200 dark:bg-sky-950/40 dark:ring-sky-900">
+                <p className="text-xs font-bold uppercase tracking-wide text-sky-600 dark:text-sky-400">
+                  Bulk density
+                </p>
+                <p className="font-mono text-base font-bold text-sky-800 dark:text-sky-300">
+                  {bulkDensityResult == null ? '\u2014' : `${formatNumber(bulkDensityResult, 4, false)} g/cm³`}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-end">
+              <div className="w-full rounded-xl bg-emerald-50 px-4 py-2.5 text-center ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:ring-emerald-900">
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                  Volumetric moisture
+                </p>
+                <p className="font-mono text-base font-bold text-emerald-800 dark:text-emerald-300">
+                  {volumetricResult == null
+                    ? '\u2014'
+                    : `${formatNumber(volumetricResult, 4, false)} %`}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -359,7 +521,7 @@ export default function CalibrationCalculator({ isDark }) {
         </div>
 
         <div className="card flex h-full flex-col p-5 sm:p-6">
-          <SectionHeading icon={Ruler} title="Calibration Curve" subtitle="Reading vs gravimetric moisture." />
+          <SectionHeading icon={Ruler} title="Calibration Curve" subtitle="Reading vs reference moisture." />
           <CalibrationGraph
             points={graphPoints}
             line={graphLine}
@@ -375,7 +537,7 @@ export default function CalibrationCalculator({ isDark }) {
           <SectionHeading
             icon={Ruler}
             title="Field Conversion"
-            subtitle="Apply the calibration equation to field instrument readings → Estimated Reference-Equivalent Moisture Content."
+            subtitle={`Apply the calibration equation to field instrument readings → Estimated ${volumetricActive ? 'Volumetric' : 'Reference-Equivalent'} Moisture Content.`}
           />
           {!canConvert && prevExists >= 2 ? (
             <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:ring-amber-900">
@@ -404,29 +566,90 @@ export default function CalibrationCalculator({ isDark }) {
                   </button>
                 )}
                 {fieldRows.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const converted = fieldRows.map((f) => {
-                        const mc = applyCalibration(f.reading, fit.a, fit.b);
-                        return [
-                          f.label,
-                          f.reading,
-                          mc == null ? '' : formatNumber(mc, 2, false),
-                        ];
-                      });
-                      downloadCsv(
-                        `field-conversion-${todayISO()}.csv`,
-                        ['Sample / location', 'Instrument reading (R)', 'Estimated moisture (%)'],
-                        converted,
-                      );
-                    }}
-                    className={`${BTN_SEC} ml-auto`}
-                  >
-                    <Download className="h-4 w-4" aria-hidden="true" /> CSV
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        downloadCsv(
+                          `field-conversion-${todayISO()}.csv`,
+                          ['Sample / location', 'Instrument reading (R)', 'Estimated moisture (%)'],
+                          convertedFieldRows().map((f) => [
+                            f.label,
+                            f.reading,
+                            f.moisture == null ? '' : formatNumber(f.moisture, 2, false),
+                          ]),
+                        );
+                        setCopiedMsg('CSV downloaded.');
+                      }}
+                      className={`${BTN_SEC} ml-auto`}
+                    >
+                      <Download className="h-4 w-4" aria-hidden="true" /> CSV
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const rows = convertedFieldRows().map((f) => ({
+                          label: f.label,
+                          reading: f.reading,
+                          moisture: f.moisture,
+                        }));
+                        exportFieldExcel(rows).then(() => {
+                          setCopiedMsg('Excel workbook downloaded.');
+                        });
+                      }}
+                      className={BTN_SEC}
+                    >
+                      <Download className="h-4 w-4" aria-hidden="true" /> Excel (.xlsx)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const rows = convertedFieldRows().map((f) => ({
+                          label: f.label,
+                          reading: f.reading,
+                          moisture: f.moisture,
+                        }));
+                        await exportFieldPdf(rows);
+                        setCopiedMsg('PDF report downloaded.');
+                      }}
+                      className={BTN_GHOST}
+                    >
+                      <Download className="h-4 w-4" aria-hidden="true" /> PDF
+                    </button>
+                  </>
                 )}
               </div>
+
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                <label className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  Bulk import via JSON (paste readings)
+                </label>
+                <textarea
+                  rows={3}
+                  className={`${INPUT} w-full font-mono text-xs`}
+                  placeholder={'[{"label":"Plot A","reading":45},{"label":"Plot B","reading":52}]'}
+                  value={jsonText}
+                  onChange={(e) => setJsonText(e.target.value)}
+                />
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={importJson} disabled={!jsonText.trim()} className={BTN_SEC}>
+                    <Plus className="h-4 w-4" aria-hidden="true" /> Import readings
+                  </button>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">
+                    Accepts an array of numbers (<code>[45, 52, 38]</code>) or objects with
+                    <code> label/reading</code>, <code>sample/value</code> or <code>name/location</code>.
+                  </span>
+                </div>
+                {jsonError && (
+                  <p className="mt-2 text-xs font-semibold text-rose-600 dark:text-rose-400">{jsonError}</p>
+                )}
+              </div>
+
+              {copiedMsg && (
+                <p className="no-print mt-3 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900">
+                  {copiedMsg}
+                </p>
+              )}
 
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full min-w-[560px] text-sm">
@@ -434,7 +657,9 @@ export default function CalibrationCalculator({ isDark }) {
                     <tr className="border-b border-slate-200 text-left text-xs font-bold uppercase tracking-wide text-slate-400 dark:border-slate-700 dark:text-slate-500">
                       <th className="py-2 pr-3">Sample / location</th>
                       <th className="py-2 pr-3">Instrument reading (R)</th>
-                      <th className="py-2 text-right">Estimated Reference-Equivalent Moisture (%)</th>
+                      <th className="py-2 text-right">
+                        Estimated {volumetricActive ? 'Volumetric' : 'Reference-Equivalent'} Moisture (%)
+                      </th>
                       <th className="py-2 pl-3 text-right">Actions</th>
                     </tr>
                   </thead>

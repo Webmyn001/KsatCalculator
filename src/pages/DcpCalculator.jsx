@@ -11,7 +11,9 @@ import {
   Download,
   Printer,
   AlertTriangle,
+  ClipboardCopy,
 } from 'lucide-react';
+import { copyDcpTable } from '../utils/clipboard';
 import {
   ENERGY,
   TRANSITION_INTERVAL,
@@ -60,6 +62,7 @@ export default function DcpCalculator() {
   const [readings, setReadings] = useState([]);
   const [results, setResults] = useState(null);
   const [issues, setIssues] = useState([]);
+  const [copied, setCopied] = useState(false);
   const idRef = useRef(1);
   const resultsRef = useRef(null);
 
@@ -150,6 +153,16 @@ export default function DcpCalculator() {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const copyToExcel = async () => {
+    if (!results) {
+      setIssues(['Please click "Calculate Results" before copying.']);
+      return;
+    }
+    await copyDcpTable(results);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
   };
 
   const inputRows = useMemo(
@@ -406,6 +419,15 @@ export default function DcpCalculator() {
           </button>
           <button
             type="button"
+            onClick={copyToExcel}
+            disabled={!results}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
+            Copy Table to Excel
+          </button>
+          <button
+            type="button"
             onClick={() => window.print()}
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
@@ -426,6 +448,12 @@ export default function DcpCalculator() {
           Soil strength is the sum of all energy values within each 150 mm depth band, following the OAU Soil Science
           class convention. Energy uses the constant {ENERGY} kPa/kg/cm² and the total is reported in kPa.
         </p>
+
+        {copied && (
+          <p className="no-print mt-3 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900">
+            Table and total soil strength copied — paste directly into Excel.
+          </p>
+        )}
       </section>
 
       <footer className="pt-4 pb-8 text-center">

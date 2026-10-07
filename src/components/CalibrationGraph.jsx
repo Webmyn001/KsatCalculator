@@ -67,9 +67,24 @@ export default function CalibrationGraph({ points, line, hasData, isDark }) {
                 dataKey="obs"
                 name="Calibration samples"
                 fill="#10b981"
-                fillOpacity={0.9}
-                stroke="#047857"
-                strokeWidth={1}
+                fillOpacity={1}
+                stroke="#065f46"
+                strokeWidth={1.5}
+                shape={(props) => {
+                  const { cx, cy } = props;
+                  if (cx == null || cy == null) return null;
+                  return (
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={5.5}
+                      fill="#10b981"
+                      fillOpacity={1}
+                      stroke="#065f46"
+                      strokeWidth={1.5}
+                    />
+                  );
+                }}
                 line={false}
                 isAnimationActive
               />

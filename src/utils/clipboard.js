@@ -38,3 +38,39 @@ export async function copyTableToClipboard(rows, unit) {
   await navigator.clipboard.writeText(tsv);
   return true;
 }
+
+export async function copyDcpTable({ detail, rangeSummary, total }) {
+  const header = [
+    'Serial No.',
+    'Depth (mm)',
+    'Prev. Depth',
+    'Next Depth',
+    'Transition Point',
+    'Energy',
+    'Type',
+    'Calculation',
+  ];
+  const lines = detail.map((r) =>
+    [
+      r.serial,
+      r.depth,
+      r.prevDepth === null ? '' : r.prevDepth,
+      r.nextDepth === null ? '' : r.nextDepth,
+      r.transitionPoint === null ? '' : r.transitionPoint,
+      r.energy,
+      r.type,
+      r.calc === null ? '' : r.calc,
+    ].join('\t'),
+  );
+  const tsv = [
+    header.join('\t'),
+    ...lines,
+    '',
+    'Depth Range\tSoil Strength (kPa)',
+    ...rangeSummary.ranges.map((r) => `${r.label}\t${r.value}`),
+    '',
+    `Total Soil Strength (kPa)\t${total}`,
+  ].join('\r\n');
+  await navigator.clipboard.writeText(tsv);
+  return true;
+}

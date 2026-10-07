@@ -10,7 +10,7 @@ import { exportExcel } from '../utils/excelExport';
 import { exportPdf } from '../utils/pdfExport';
 import { exportGraphPng, copyTableToClipboard } from '../utils/clipboard';
 import { formatDate } from '../utils/formatting';
-import { calculateSorptivity } from '../utils/sorptivity';
+import { sorptivityFromRegression } from '../utils/sorptivity';
 
 const BTN =
   'inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold ring-1 transition disabled:cursor-not-allowed disabled:opacity-40';
@@ -25,11 +25,7 @@ export default function ExportButtons({
   const { rows, regression, k } = derived;
   const dateGenerated = new Date().toISOString().slice(0, 10);
 
-  const sorptivity = calculateSorptivity(
-    rows
-      .filter((r) => r.time > 0 && r.cumulativeCm != null)
-      .map((r) => ({ time: r.time, cumulativeInfiltration: r.cumulativeCm })),
-  );
+  const sorptivity = sorptivityFromRegression(regression);
 
   const busy = (fn) => async () => {
     try {
