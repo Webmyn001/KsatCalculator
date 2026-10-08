@@ -157,6 +157,7 @@ export default function CalibrationCalculator({ isDark }) {
   // Field conversion
   const [fieldRows, setFieldRows] = useState([]);
   const [fieldLabel, setFieldLabel] = useState('');
+  const [experimentName, setExperimentName] = useState('');
   const [jsonText, setJsonText] = useState('');
   const [jsonError, setJsonError] = useState('');
   const [copiedMsg, setCopiedMsg] = useState('');
@@ -621,6 +622,20 @@ export default function CalibrationCalculator({ isDark }) {
               <div className="flex flex-wrap items-end gap-3">
                 <div>
                   <label className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    Experiment / site name
+                  </label>
+                  <input
+                    className={`${INPUT} w-72`}
+                    placeholder="e.g. Moisture calibration – Plot 1, Farm East"
+                    value={experimentName}
+                    onChange={(e) => setExperimentName(e.target.value)}
+                  />
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                    Optional — printed in the PDF and Excel report.
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
                     Sample / location label
                   </label>
                   <input
@@ -666,7 +681,7 @@ export default function CalibrationCalculator({ isDark }) {
                           reading: f.reading,
                           moisture: f.moisture,
                         }));
-                        exportFieldExcel(rows).then(() => {
+                        exportFieldExcel(rows, { title: experimentName }).then(() => {
                           setCopiedMsg('Excel workbook downloaded.');
                         });
                       }}
@@ -682,7 +697,7 @@ export default function CalibrationCalculator({ isDark }) {
                           reading: f.reading,
                           moisture: f.moisture,
                         }));
-                        await exportFieldPdf(rows);
+                        await exportFieldPdf(rows, { title: experimentName });
                         setCopiedMsg('PDF report downloaded.');
                       }}
                       className={BTN_GHOST}
