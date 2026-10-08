@@ -16,9 +16,18 @@ export async function exportFieldExcel(fieldRows, opts = {}) {
     opts.filename ||
     `field-conversion-${opts.dateGenerated || todayISO()}.xlsx`;
   const title = opts.title ? String(opts.title).trim() : '';
-  const rows = title
-    ? [[title], [], ['Sample / Location', 'Instrument Reading (R)', 'Estimated Moisture (%)']]
-    : [['Sample / Location', 'Instrument Reading (R)', 'Estimated Moisture (%)']];
+  const fit = opts.fit;
+  const rows = [];
+  if (title) rows.push([title]);
+  if (title) rows.push([]);
+  if (fit && fit.equation) {
+    rows.push(['Calibration Equation', fit.equation]);
+    rows.push(['R² (goodness of fit)', fit.r2 == null ? '—' : formatNumber(fit.r2, 4, false)]);
+    rows.push(['RMSE', fit.rmse == null ? '—' : `${formatNumber(fit.rmse, 4, false)} %`]);
+    rows.push(['Samples fitted (n)', fit.n == null ? '—' : String(fit.n)]);
+    rows.push([]);
+  }
+  rows.push(['Sample / Location', 'Instrument Reading (R)', 'Estimated Moisture (%)']);
   rows.push(
     ...fieldRows.map((f) => [
       f.label ? String(f.label) : '',
@@ -31,7 +40,7 @@ export async function exportFieldExcel(fieldRows, opts = {}) {
   const sheet = XLSX.utils.aoa_to_sheet(rows);
   sheet['!cols'] = [
     { wch: 30 },
-    { wch: 20, alignment: { horizontal: 'center' } },
+    { wch: 22, alignment: { horizontal: 'center' } },
     { wch: 22, alignment: { horizontal: 'center' } },
   ];
   if (title) {
@@ -49,26 +58,50 @@ export async function exportFieldPdf(fieldRows, opts = {}) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const dateGenerated = opts.dateGenerated || todayISO();
   const title = opts.title ? String(opts.title).trim() : '';
+  const fit = opts.fit;
+
+  const headerLines = [];
+  headerLines.push({ text: 'SOIL MOISTURE FIELD CONVERSION', y: 12, size: 16, style: 'bold' });
+  headerLines.push({
+    text: 'Estimated Reference-Equivalent Moisture Content',
+    y: 19,
+    size: 11,
+    style: 'normal',
+  });
+  let y = 25;
+  if (title) {
+    headerLines.push({ text: sanitize(title), y, size: 10, style: 'bold' });
+    y += 6.5;
+  }
+  if (fit && fit.equation) {
+    headerLines.push({
+      text: `Calibration Equation: ${sanitize(fit.equation)}`,
+      y,
+      size: 10,
+      style: 'bold',
+    });
+    y += 6;
+    const stats = `R² = ${
+      fit.r2 == null ? '—' : formatNumber(fit.r2, 4)
+    }   RMSE = ${
+      fit.rmse == null ? '—' : `${formatNumber(fit.rmse, 4)} %`
+    }   Samples = ${fit.n == null ? '—' : fit.n}`;
+    headerLines.push({ text: stats, y, size: 9, style: 'normal' });
+    y += 6.5;
+  }
+  const bannerHeight = Math.max(26, y + 6);
 
   doc.setFillColor(...GREEN);
-  doc.rect(0, 0, pageWidth, title ? 32 : 26, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.text('SOIL MOISTURE FIELD CONVERSION', pageWidth / 2, title ? 12 : 11, { align: 'center' });
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Estimated Reference-Equivalent Moisture Content', pageWidth / 2, title ? 19 : 18, {
-    align: 'center',
-  });
-  if (title) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text(sanitize(title), pageWidth / 2, 27, { align: 'center', maxWidth: pageWidth - 24 });
+  doc.rect(0, 0, pageWidth, bannerHeight, 'F');
+  for (const line of headerLines) {
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', line.style);
+    doc.setFontSize(line.size);
+    doc.text(line.text, pageWidth / 2, line.y, { align: 'center', maxWidth: pageWidth - 24 });
   }
 
   autoTable(doc, {
-    startY: title ? 40 : 34,
+    startY: bannerHeight + 8,
     margin: { left: 14, right: 14 },
     theme: 'grid',
     headStyles: { fillColor: GREEN, textColor: 255, fontStyle: 'bold' },

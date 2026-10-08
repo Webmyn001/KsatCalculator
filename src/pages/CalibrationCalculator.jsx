@@ -681,7 +681,10 @@ export default function CalibrationCalculator({ isDark }) {
                           reading: f.reading,
                           moisture: f.moisture,
                         }));
-                        exportFieldExcel(rows, { title: experimentName }).then(() => {
+                        exportFieldExcel(rows, {
+                          title: experimentName,
+                          fit: fit.a == null ? null : { equation: fit.equation, r2: fit.r2, rmse: fit.rmse, n: fit.n },
+                        }).then(() => {
                           setCopiedMsg('Excel workbook downloaded.');
                         });
                       }}
@@ -697,7 +700,10 @@ export default function CalibrationCalculator({ isDark }) {
                           reading: f.reading,
                           moisture: f.moisture,
                         }));
-                        await exportFieldPdf(rows, { title: experimentName });
+                        await exportFieldPdf(rows, {
+                          title: experimentName,
+                          fit: fit.a == null ? null : { equation: fit.equation, r2: fit.r2, rmse: fit.rmse, n: fit.n },
+                        });
                         setCopiedMsg('PDF report downloaded.');
                       }}
                       className={BTN_GHOST}
