@@ -22,8 +22,6 @@ export async function exportFieldExcel(fieldRows, opts = {}) {
   if (title) rows.push([]);
   if (fit && fit.equation) {
     rows.push(['Calibration Equation', fit.equation]);
-    rows.push(['R² (goodness of fit)', fit.r2 == null ? '—' : formatNumber(fit.r2, 4, false)]);
-    rows.push(['RMSE', fit.rmse == null ? '—' : `${formatNumber(fit.rmse, 4, false)} %`]);
     rows.push(['Samples fitted (n)', fit.n == null ? '—' : String(fit.n)]);
     rows.push([]);
   }
@@ -81,12 +79,8 @@ export async function exportFieldPdf(fieldRows, opts = {}) {
       style: 'bold',
     });
     y += 6;
-    const stats = `R² = ${
-      fit.r2 == null ? '—' : formatNumber(fit.r2, 4)
-    }   RMSE = ${
-      fit.rmse == null ? '—' : `${formatNumber(fit.rmse, 4)} %`
-    }   Samples = ${fit.n == null ? '—' : fit.n}`;
-    headerLines.push({ text: stats, y, size: 9, style: 'normal' });
+    const sampleLine = `Samples fitted = ${fit.n == null ? '—' : fit.n}`;
+    headerLines.push({ text: sampleLine, y, size: 9, style: 'normal' });
     y += 6.5;
   }
   const bannerHeight = Math.max(26, y + 6);

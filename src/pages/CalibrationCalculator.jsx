@@ -683,7 +683,7 @@ export default function CalibrationCalculator({ isDark }) {
                         }));
                         exportFieldExcel(rows, {
                           title: experimentName,
-                          fit: fit.a == null ? null : { equation: fit.equation, r2: fit.r2, rmse: fit.rmse, n: fit.n },
+                          fit: fit.a == null ? null : { equation: fit.equation, n: fit.n },
                         }).then(() => {
                           setCopiedMsg('Excel workbook downloaded.');
                         });
@@ -702,7 +702,7 @@ export default function CalibrationCalculator({ isDark }) {
                         }));
                         await exportFieldPdf(rows, {
                           title: experimentName,
-                          fit: fit.a == null ? null : { equation: fit.equation, r2: fit.r2, rmse: fit.rmse, n: fit.n },
+                          fit: fit.a == null ? null : { equation: fit.equation, n: fit.n },
                         });
                         setCopiedMsg('PDF report downloaded.');
                       }}
