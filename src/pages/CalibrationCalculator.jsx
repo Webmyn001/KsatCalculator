@@ -17,7 +17,7 @@ import {
   calculateVolumetricMoisture,
   applyCalibration,
 } from '../utils/calibration';
-import { exportFieldExcel, exportFieldPdf } from '../utils/fieldExport';
+import { exportCalibrationSamplesExcel, exportFieldExcel, exportFieldPdf } from '../utils/fieldExport';
 import { formatNumber, todayISO } from '../utils/formatting';
 import CalibrationGraph from '../components/CalibrationGraph';
 
@@ -481,6 +481,29 @@ export default function CalibrationCalculator({ isDark }) {
             </button>
             <button type="button" onClick={clearRows} className={BTN_GHOST}>
               <Eraser className="h-4 w-4" aria-hidden="true" /> Reset to Dry / Moist / Wet
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                const samples = rows.map((r) => ({
+                  condition: r.condition,
+                  reading: r.reading,
+                  wetMass: r.wetMass,
+                  dryMass: r.dryMass,
+                  gravimetric: gravimetricOf(r),
+                  volumetric: volumetricOf(r),
+                }));
+                await exportCalibrationSamplesExcel(samples, {
+                  title: experimentName,
+                  fit: fit.a == null ? null : { equation: fit.equation, n: fit.n },
+                  samplerVolume,
+                  waterDensity,
+                });
+                setCopiedMsg('Calibration samples workbook downloaded.');
+              }}
+              className={`${BTN_SEC} ml-auto`}
+            >
+              <Download className="h-4 w-4" aria-hidden="true" /> Download Excel
             </button>
           </div>
           {fitMessage && (

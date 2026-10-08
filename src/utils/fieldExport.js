@@ -49,6 +49,65 @@ export async function exportFieldExcel(fieldRows, opts = {}) {
   XLSX.writeFile(wb, filename);
 }
 
+export async function exportCalibrationSamplesExcel(samples, opts = {}) {
+  const XLSX = await import('xlsx');
+  const filename =
+    opts.filename || `calibration-samples-${opts.dateGenerated || todayISO()}.xlsx`;
+  const title = opts.title ? String(opts.title).trim() : '';
+  const fit = opts.fit;
+  const rows = [];
+  if (title) rows.push([title]);
+  if (title) rows.push([]);
+  if (fit && fit.equation) {
+    rows.push(['Calibration Equation', fit.equation]);
+    rows.push(['Samples fitted (n)', fit.n == null ? '—' : String(fit.n)]);
+    if (opts.samplerVolume && Number.isFinite(Number(opts.samplerVolume))) {
+      rows.push(['Core Sampler Volume', `${Number(opts.samplerVolume)} cm³`]);
+    }
+    if (opts.waterDensity && Number.isFinite(Number(opts.waterDensity))) {
+      const wd = Number(opts.waterDensity);
+      rows.push([
+        'Density of Water',
+        wd === 1000 ? '1000 kg/m³' : `${wd} g/cm³`,
+      ]);
+    }
+    rows.push([]);
+  }
+  rows.push([
+    'Condition / Sample',
+    'Instrument Reading (R)',
+    'Wet Soil Mass (g)',
+    'Dry Soil Mass (g)',
+    'Gravimetric (%)',
+    'Volumetric (%)',
+  ]);
+  rows.push(
+    ...samples.map((s) => [
+      s.condition ? String(s.condition) : '',
+      s.reading === '' || s.reading == null ? '' : String(s.reading),
+      s.wetMass === '' || s.wetMass == null ? '' : String(s.wetMass),
+      s.dryMass === '' || s.dryMass == null ? '' : String(s.dryMass),
+      s.gravimetric == null ? '—' : formatNumber(s.gravimetric, 4, false),
+      s.volumetric == null ? '—' : formatNumber(s.volumetric, 4, false),
+    ]),
+  );
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+  sheet['!cols'] = [
+    { wch: 22 },
+    { wch: 20, alignment: { horizontal: 'center' } },
+    { wch: 18, alignment: { horizontal: 'center' } },
+    { wch: 18, alignment: { horizontal: 'center' } },
+    { wch: 16, alignment: { horizontal: 'center' } },
+    { wch: 16, alignment: { horizontal: 'center' } },
+  ];
+  if (title) {
+    sheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, sheet, 'Calibration Samples');
+  XLSX.writeFile(wb, filename);
+}
+
 export async function exportFieldPdf(fieldRows, opts = {}) {
   const { jsPDF } = await import('jspdf');
   const { default: autoTable } = await import('jspdf-autotable');
