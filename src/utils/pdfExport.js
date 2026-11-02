@@ -21,7 +21,6 @@ export async function exportPdf({
   k,
   unit,
   graphRef,
-  dateGenerated,
   sorptivity,
 }) {
   const { jsPDF } = await import('jspdf');
@@ -165,21 +164,6 @@ export async function exportPdf({
       doc.text('(Graph could not be captured for this report.)', 14, y + 6);
     }
   }
-
-  const pageHeight = doc.internal.pageSize.getHeight();
-  doc.setFontSize(8);
-  doc.setTextColor(...GRAY);
-  doc.text(
-    `Date Generated: ${dateGenerated}`,
-    14,
-    pageHeight - 12,
-  );
-  doc.text(
-    'Generated using KunsatCalculator',
-    pageWidth / 2,
-    pageHeight - 8,
-    { align: 'center' },
-  );
 
   const safeName = (experiment.name || 'experiment')
     .replace(/[\\/:*?"<>|]/g, '_')

@@ -303,19 +303,15 @@ export async function exportAllPdf(entries, opts = {}) {
     drawChart(doc, { x: gx, y: y + 3, w: graphW, h: graphH }, points, regression);
   });
 
-  // Footer on every page
+  // Page numbers on every page
   const total = doc.getNumberOfPages();
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.setTextColor(...GRAY);
   for (let p = 1; p <= total; p += 1) {
     doc.setPage(p);
-    doc.text(`Date Generated: ${dateGenerated}`, 14, pageHeight - 12);
-    doc.text(`Page ${p} of ${total}`, pageWidth - 14, pageHeight - 12, {
+    doc.text(`Page ${p} of ${total}`, pageWidth - 14, pageHeight - 10, {
       align: 'right',
-    });
-    doc.text('Generated using KunsatCalculator', pageWidth / 2, pageHeight - 8, {
-      align: 'center',
     });
   }
 

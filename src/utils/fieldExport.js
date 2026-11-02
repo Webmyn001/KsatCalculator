@@ -1,7 +1,6 @@
 import { formatNumber, todayISO } from './formatting';
 
 const GREEN = [4, 120, 87];
-const DARK = [6, 78, 59];
 
 function sanitize(s) {
   return String(s ?? '')
@@ -167,12 +166,5 @@ export async function exportFieldPdf(fieldRows, opts = {}) {
     ]),
   });
 
-  const pageHeight = doc.internal.pageSize.getHeight();
-  doc.setFontSize(8);
-  doc.setTextColor(...DARK);
-  doc.text(`Date Generated: ${dateGenerated}`, 14, pageHeight - 12);
-  doc.text('Generated using KunsatCalculator', pageWidth / 2, pageHeight - 8, {
-    align: 'center',
-  });
   doc.save(`field-conversion-${dateGenerated}.pdf`);
 }
