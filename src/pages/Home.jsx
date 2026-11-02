@@ -27,6 +27,8 @@ import DcpCalculator from './DcpCalculator';
 import CalibrationCalculator from './CalibrationCalculator';
 import SorptivityCard from '../components/SorptivityCard';
 import { fittedCurve } from '../utils/regression';
+import { exportAllPdf } from '../utils/combinedPdfExport';
+import { todayISO } from '../utils/formatting';
 
 function SectionHeading({ icon: Icon, title, subtitle }) {
   return (
@@ -275,6 +277,30 @@ function Workspace({ calc, toast, dark, graphRef }) {
   const { experiment, soilTexture, aParam, unit, scientific, volumeInputs } = state;
   const { rows, regression, k, totalInfiltrationCm3, finalCumulativeCm } = derived;
 
+  const currentHasData = rows.some((r) => r.volume != null);
+  const exportCount = calc.history.length + (currentHasData ? 1 : 0);
+
+  const handleExportAll = async () => {
+    try {
+      const entries = [...calc.history].reverse().map((h) => ({
+        experiment: h.experiment,
+        soilTexture: h.soilTexture,
+        aParam: h.aParam,
+        volumeInputs: h.volumeInputs,
+        unit,
+      }));
+      if (currentHasData) {
+        entries.push({ experiment, soilTexture, aParam, volumeInputs, unit });
+      }
+      if (entries.length === 0) return;
+      await exportAllPdf(entries, { unit, dateGenerated: todayISO() });
+      toast(`Combined PDF downloaded — ${entries.length} experiment(s).`);
+    } catch (err) {
+      console.error(err);
+      toast('Could not build the combined PDF. Please try again.', 'warning');
+    }
+  };
+
   const points = useMemo(
     () =>
       rows
@@ -402,7 +428,13 @@ function Workspace({ calc, toast, dark, graphRef }) {
       </section>
 
       <section id="download" className="no-print">
-        <ExportButtons calc={calc} graphRef={graphRef} toast={toast} />
+        <ExportButtons
+          calc={calc}
+          graphRef={graphRef}
+          toast={toast}
+          onExportAll={handleExportAll}
+          exportCount={exportCount}
+        />
       </section>
 
       <section id="history" className="no-print">
@@ -411,6 +443,8 @@ function Workspace({ calc, toast, dark, graphRef }) {
           onRestore={calc.restoreHistory}
           onRemove={calc.removeHistory}
           onClear={calc.clearHistory}
+          onExportAll={handleExportAll}
+          exportCount={exportCount}
         />
       </section>
 

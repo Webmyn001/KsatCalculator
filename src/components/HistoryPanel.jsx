@@ -6,6 +6,7 @@ import {
   Trash2,
   X,
   Gauge,
+  FileDown,
 } from 'lucide-react';
 import { formatDate, formatNumber } from '../utils/formatting';
 
@@ -14,6 +15,8 @@ export default function HistoryPanel({
   onRestore,
   onRemove,
   onClear,
+  onExportAll,
+  exportCount = 0,
 }) {
   const [open, setOpen] = useState(false);
 
@@ -39,6 +42,26 @@ export default function HistoryPanel({
 
       {open && (
         <div className="border-t border-slate-100 px-5 pb-5 pt-4 dark:border-slate-800">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-violet-50 p-3 ring-1 ring-violet-100 dark:bg-violet-950/30 dark:ring-violet-900">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">
+                Download all calculations
+              </p>
+              <p className="text-xs text-violet-700/80 dark:text-violet-300/80">
+                One PDF containing all {exportCount} experiment{exportCount === 1 ? '' : 's'} in this
+                session — experiment info, measurement table, equations and graph.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onExportAll}
+              disabled={!exportCount}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <FileDown className="h-4 w-4" aria-hidden="true" />
+              Download PDF ({exportCount})
+            </button>
+          </div>
           {history.length === 0 ? (
             <div className="flex flex-col items-center gap-2 rounded-xl bg-slate-50 py-8 text-center dark:bg-slate-800/50">
               <FolderOpen className="h-8 w-8 text-slate-300 dark:text-slate-600" aria-hidden="true" />

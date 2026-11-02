@@ -5,6 +5,7 @@ import {
   Copy,
   PlusCircle,
   Download,
+  Files,
 } from 'lucide-react';
 import { exportExcel } from '../utils/excelExport';
 import { exportPdf } from '../utils/pdfExport';
@@ -19,6 +20,8 @@ export default function ExportButtons({
   calc,
   graphRef,
   toast,
+  onExportAll,
+  exportCount = 0,
 }) {
   const { state, derived, reset } = calc;
   const { experiment, soilTexture, aParam, unit, scientific } = state;
@@ -105,7 +108,7 @@ export default function ExportButtons({
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <button
           onClick={handleExcel}
           disabled={!rows.some((r) => r.volume != null)}
@@ -121,6 +124,15 @@ export default function ExportButtons({
         >
           <FileText className="h-4 w-4" aria-hidden="true" />
           PDF Report
+        </button>
+        <button
+          onClick={onExportAll}
+          disabled={!exportCount}
+          className={`${BTN} bg-violet-600 text-white ring-violet-600 hover:bg-violet-700`}
+          title="Download every experiment in this session as one PDF"
+        >
+          <Files className="h-4 w-4" aria-hidden="true" />
+          All Reports ({exportCount})
         </button>
         <button
           onClick={handlePng}
