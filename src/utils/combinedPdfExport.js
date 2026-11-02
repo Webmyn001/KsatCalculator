@@ -277,7 +277,7 @@ export async function exportAllPdf(entries, opts = {}) {
       body: [
         ['Polynomial Equation', regression ? sanitize(formatEquation(regression)) : '—'],
         ['Coefficient of Determination (R2)', formatNumber(regression ? regression.r2 : null, 4)],
-        ['Hydraulic Conductivity K (cm/s)', k != null ? formatNumber(k, 6) : '—'],
+        ['Hydraulic Conductivity K = C1 / A (cm/s)', k != null ? formatNumber(k, 6) : '—'],
         ['Sorptivity Sw (cm s^-1/2)', sorptivity.sw != null ? formatNumber(sorptivity.sw, 6) : '—'],
         [`Total Infiltration (${unit})`, totalInfiltrationCm3 != null ? formatNumber(totalInfiltrationCm3, 2) : '—'],
         ['Final Cumulative Depth (cm)', finalCumulativeCm != null ? formatNumber(finalCumulativeCm, 3) : '—'],

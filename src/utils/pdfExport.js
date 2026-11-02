@@ -110,7 +110,7 @@ export async function exportPdf({
       body: [
         ['Polynomial Equation', sanitize(formatEquation(regression))],
         ['Coefficient of Determination (R²)', formatNumber(regression.r2, 4)],
-        ['Hydraulic Conductivity K (cm/s)', k != null ? formatNumber(k, 6) : '—'],
+        ['Hydraulic Conductivity K = C1 / A (cm/s)', k != null ? formatNumber(k, 6) : '—'],
       ],
       columnStyles: {
         0: { cellWidth: 60, fontStyle: 'bold' },
