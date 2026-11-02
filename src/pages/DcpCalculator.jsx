@@ -12,8 +12,12 @@ import {
   Printer,
   AlertTriangle,
   ClipboardCopy,
+  FileDown,
+  PlusCircle,
 } from 'lucide-react';
 import { copyDcpTable } from '../utils/clipboard';
+import { exportDcpAllPdf } from '../utils/dcpPdfExport';
+import DcpHistoryPanel from '../components/DcpHistoryPanel';
 import {
   ENERGY,
   TRANSITION_INTERVAL,
@@ -63,6 +67,8 @@ export default function DcpCalculator() {
   const [results, setResults] = useState(null);
   const [issues, setIssues] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [notice, setNotice] = useState('');
   const idRef = useRef(1);
   const resultsRef = useRef(null);
 
@@ -85,7 +91,81 @@ export default function DcpCalculator() {
     setReadings([]);
     setResults(null);
     setIssues([]);
+    setNotice('');
   };
+
+  const archiveCurrent = () => {
+    if (!results) return null;
+    const item = {
+      id: Date.now() + Math.random(),
+      createdAt: new Date().toISOString(),
+      readings: readings.map((r) => ({ depth: r.depth })),
+      readingCount: readings.length,
+      total: results.total,
+    };
+    setHistory((h) => [item, ...h].slice(0, 20));
+    return item;
+  };
+
+  const startNewExperiment = () => {
+    const item = archiveCurrent();
+    setReadings([]);
+    setResults(null);
+    setIssues([]);
+    setCopied(false);
+    setNotice(
+      item
+        ? 'Experiment archived to history. New experiment ready.'
+        : 'New experiment ready.',
+    );
+  };
+
+  const restoreHistory = (item) => {
+    const restored = item.readings.map((r) => ({
+      id: idRef.current++,
+      depth: r.depth,
+    }));
+    setReadings(restored);
+    setIssues([]);
+    setCopied(false);
+    setHistory((h) => h.filter((x) => x.id !== item.id));
+    const detail = calculateEnergies(restored);
+    const rangeSummary = calculateRangeSummary(detail);
+    const total = calculateSoilStrength(detail);
+    setResults({ detail, rangeSummary, total });
+    setNotice('Experiment restored from history.');
+    setTimeout(
+      () => resultsRef.current && resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      60,
+    );
+  };
+
+  const removeHistory = (id) => {
+    setHistory((h) => h.filter((x) => x.id !== id));
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+  };
+
+  const handleExportAll = async () => {
+    const entries = [...history]
+      .reverse()
+      .map((h) => ({ readings: h.readings }));
+    if (results) {
+      entries.push({ readings: readings.map((r) => ({ depth: r.depth })) });
+    }
+    if (entries.length === 0) return;
+    try {
+      await exportDcpAllPdf(entries);
+      setNotice(`Combined PDF downloaded — ${entries.length} experiment(s).`);
+    } catch (err) {
+      console.error(err);
+      setNotice('Could not build the combined PDF. Please try again.');
+    }
+  };
+
+  const exportCount = history.length + (results ? 1 : 0);
 
   const loadExample = () => {
     setReadings(EXAMPLE_DEPTHS.map((depth) => ({ id: idRef.current++, depth })));
@@ -428,6 +508,26 @@ export default function DcpCalculator() {
           </button>
           <button
             type="button"
+            onClick={handleExportAll}
+            disabled={!exportCount}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Download every experiment in this session as one PDF"
+          >
+            <FileDown className="h-4 w-4" aria-hidden="true" />
+            All Reports ({exportCount})
+          </button>
+          <button
+            type="button"
+            onClick={startNewExperiment}
+            disabled={!results && readings.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-300 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-900 dark:hover:bg-emerald-950"
+            title="Archive this calculation to history and start a fresh one"
+          >
+            <PlusCircle className="h-4 w-4" aria-hidden="true" />
+            New Experiment
+          </button>
+          <button
+            type="button"
             onClick={() => window.print()}
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
@@ -454,6 +554,23 @@ export default function DcpCalculator() {
             Table and total soil strength copied — paste directly into Excel.
           </p>
         )}
+
+        {notice && (
+          <p className="no-print mt-3 rounded-xl bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 ring-1 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:ring-violet-900">
+            {notice}
+          </p>
+        )}
+      </section>
+
+      <section className="no-print">
+        <DcpHistoryPanel
+          history={history}
+          onRestore={restoreHistory}
+          onRemove={removeHistory}
+          onClear={clearHistory}
+          onExportAll={handleExportAll}
+          exportCount={exportCount}
+        />
       </section>
 
       <footer className="pt-4 pb-8 text-center">
