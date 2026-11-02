@@ -19,4 +19,4 @@ export const SOIL_MAP = Object.fromEntries(
   SOIL_TEXTURES.map((s) => [s.texture, s.a]),
 );
 
-export const DEFAULT_SOIL = 'Loam';
+export const DEFAULT_SOIL = 'Loamy Sand';

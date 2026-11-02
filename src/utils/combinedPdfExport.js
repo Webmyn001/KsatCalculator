@@ -201,7 +201,6 @@ export async function exportAllPdf(entries, opts = {}) {
   };
 
   list.forEach((entry, i) => {
-    const exp = entry.experiment || {};
     const {
       rows,
       regression,
@@ -218,14 +217,13 @@ export async function exportAllPdf(entries, opts = {}) {
     drawHeader(subtitle);
     let y = 22;
 
-    const name = exp.name || 'Untitled experiment';
     doc.setTextColor(...DARK);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
-    doc.text(`Experiment ${i + 1}: ${sanitize(name)}`, 14, y);
+    doc.text(`Experiment ${i + 1}`, 14, y);
     y += 3;
 
-    // Experiment information
+    // Parameters
     autoTable(doc, {
       startY: y,
       margin: { left: 14, right: 14 },
@@ -233,13 +231,8 @@ export async function exportAllPdf(entries, opts = {}) {
       headStyles: { fillColor: GREEN, textColor: 255, fontStyle: 'bold' },
       styles: { fontSize: 9, cellPadding: 1.8 },
       body: [
-        ['Experiment Name', sanitize(name)],
-        ['Location', sanitize(exp.location)],
-        ['Soil Type', sanitize(exp.soilType)],
-        ['Researcher', sanitize(exp.researcher)],
-        ['Experiment Date', sanitize(exp.date)],
-        ['Soil Texture (A source)', sanitize(entry.soilTexture) || 'Custom / Manual'],
         ['Van Genuchten Parameter A', entry.aParam != null ? String(entry.aParam) : '—'],
+        ['Soil Texture (A source)', sanitize(entry.soilTexture) || 'Custom / Manual'],
         ['Disk Area (cm2)', String(DISK_AREA)],
       ],
       columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' } },
@@ -286,7 +279,6 @@ export async function exportAllPdf(entries, opts = {}) {
         ['Coefficient of Determination (R2)', formatNumber(regression ? regression.r2 : null, 4)],
         ['Hydraulic Conductivity K (cm/s)', k != null ? formatNumber(k, 6) : '—'],
         ['Sorptivity Sw (cm s^-1/2)', sorptivity.sw != null ? formatNumber(sorptivity.sw, 6) : '—'],
-        ['Sorptivity Equation', sorptivity.equation ? sanitize(sorptivity.equation) : '—'],
         [`Total Infiltration (${unit})`, totalInfiltrationCm3 != null ? formatNumber(totalInfiltrationCm3, 2) : '—'],
         ['Final Cumulative Depth (cm)', finalCumulativeCm != null ? formatNumber(finalCumulativeCm, 3) : '—'],
         ['Samples fitted (n)', String(sorptivity.n || (regression ? regression.count : 0))],
